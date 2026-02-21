@@ -48,6 +48,11 @@ app.use('/api', createPaymentRoutes(stripeService));
 // Vybes routes (balance, history)
 app.use('/api/vybes', createVybesRoutes(wsHandler.getVybeLedger()));
 
+// SPA catch-all: serve index.html for any non-API routes (client-side routing)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // WebSocket connection handler
 wss.on('connection', (ws) => {
   wsHandler.handleConnection(ws);
