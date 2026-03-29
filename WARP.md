@@ -32,8 +32,11 @@ npm test QuizSession        # Run specific test file
 After running `npm run dev`, access the app at `http://localhost:3000`
 
 ## Tech Stack
-- WebSockets for real-time communication
-- Node.js + Express
+- Node.js + Express (REST API for payments, vybes balance/history)
+- WebSockets for real-time game sessions only (quiz create/join, questions, responses, matches)
+- React + Vite (frontend SPA)
+- Zustand for client state management
+- Stripe for payment processing
 - TypeScript (ES2022 modules, strict mode)
 - Vitest for testing
 
@@ -108,48 +111,53 @@ Built using vertical slicing approach (Slices 1-6):
 - Services in `src/server/services/`
 - Tests in `tests/unit/` and `tests/integration/`
 
-### Phase 3: UI & WebSocket Integration
-**Status: PENDING** - Backend complete, need to build UI layer
+### Phase 3: UI & WebSocket Integration ✅
+**Status: COMPLETED** - Full React SPA with WebSocket game sessions
 
-#### Backend Complete ✅
-- Question system with exactly 2 options per question
-- Response submission and validation
-- Match calculation between participants
-- Dynamic question addition support
+#### Frontend Architecture ✅
+- React SPA with Vite, served via Express in production
+- Pages: StartPage, LabPage (owner), QuizPage (participant), LobbyPage, VybesPage
+- Purchase flow pages: PurchaseSuccess, PurchaseCancel, PurchaseError
+- Zustand stores: websocketStore, authStore, quizStore, uiStore, draftStore
+- Components: Header, BottomNav, QuestionCard, DraftQuestionCard, MatchCard, ParticipantList, ConfirmDialog, LoadingScreen
 
-#### Client UI (TODO)
-- WebSocket client connection
-- Session creation/joining interface
-- Owner controls for adding questions
-- Question display with answer buttons (2 options)
-- Participant list with real-time updates
-- Response submission interface
-- Match results display (basic percentages)
-- Connection status indicators
+#### WebSocket Usage (Game Sessions Only) ✅
+WebSockets are used **exclusively** for real-time quiz session communication. All non-session operations (payments, vybes balance queries) use REST APIs.
 
-#### WebSocket Message Protocol (TODO)
-Define messages in `src/shared/types.ts`:
+Messages defined in `src/shared/types.ts`:
 
 **Client → Server:**
 - `session:create` - Owner creates new quiz
 - `session:join` - Participant joins with sessionId
-- `question:add` - Owner adds new question
+- `question:add` - Owner adds new question (with optional ownerResponse)
+- `question:unlock-limit` - Owner unlocks higher question limit
 - `response:submit` - Submit answer to question
-- `matches:get` - Request match results
+- `matches:get` - Request match results (with optional tier)
+- `credits:balance` - Request current Vybes balance
+- `credits:history` - Request transaction history
+- `ping` - Keepalive
 
 **Server → Client:**
-- `session:created` - Returns sessionId and participantId
-- `session:joined` - Confirms join with participant info
+- `session:created` - Returns sessionId, participantId, vybesBalance
+- `session:joined` - Confirms join with participant info and vybesBalance
 - `quiz:state` - Full quiz state sync
 - `question:added` - New question notification
+- `question:limit-reached` - Question limit hit (with upgrade cost)
+- `question:limit-unlocked` - Limit upgraded (with new limit and balance)
 - `participant:joined/left` - Participant updates
-- `matches:result` - Match calculation results
+- `response:recorded` - Response confirmation
+- `matches:result` - Tiered match results with cost and balance
+- `credits:balance` / `credits:history` / `credits:insufficient` - Vybes updates
+- `notification` / `error` / `pong` - System messages
 
-#### Notes
-- No countdown timer initially (can add later)
-- No "correct/incorrect" answers - matching only
-- Focus on minimal, functional UI first
-- Real-time updates via WebSocket broadcasts
+#### REST API Endpoints ✅
+- `POST /api/checkout` - Create Stripe checkout session
+- `GET /api/checkout/verify` - Verify checkout session status
+- `GET /api/packs` - List available Vybe packs
+- `POST /api/webhooks/stripe` - Stripe webhook (raw body)
+- `GET /api/vybes/balance` - Get Vybes balance for participant
+- `GET /api/vybes/history` - Get transaction history for participant
+- `GET /health` - Health check
 
 ### Phase 4: Results Visualization & Matching
 **Status: Backend COMPLETE, UI PENDING**
@@ -192,32 +200,34 @@ Integrate AI to generate questions from Twitter Spaces audio.
 - Use approved questions for initial launch
 
 ### Phase 6: Tiered Results Display System
-**Status: NOT STARTED**
+**Status: BACKEND COMPLETE** - Tiered match access with Vybes billing implemented
 
-Implement multiple visualization modes with credit-gated access:
+#### Implemented Tiers ✅
+**PREVIEW Tier (Free, 0 Vybes):**
+- 2 matches from the middle of the ranked list
+- No names revealed
 
-**Free Tier (No credits required):**
-- Basic match percentage display (e.g., "You matched with 157 other participants")
-- Top 3 match percentages shown without names (e.g., "Best match: 89%, 2nd: 84%, 3rd: 81%")
-- Simple bar chart of response distribution
+**TOP3 Tier (2 Vybes):**
+- Top 3 matches with usernames
 
-**Standard Tier (Low credit cost, e.g., 1-2 credits):**
-- Reveal usernames/handles of top 5 matches
-- Basic radar/spider chart visualization of your response pattern
-- See which specific questions you agreed/disagreed on with top match
+**ALL Tier (5 Vybes):**
+- Full match list with all usernames and percentages
 
-**Premium Tier (Higher credit cost, e.g., 5-10 credits):**
-- Full radar chart with comparison overlay (your responses vs top match)
-- Detailed breakdown of all matches with filtering options
-- Export results as shareable image for social media
-- Historical comparison if participant takes quiz multiple times
+**Question Limit Unlock (3 Vybes):**
+- Owner can unlock expanded question limit per session
 
-**Display Mode Implementation:**
+#### Billing Infrastructure ✅
+- BillingService with idempotent `purchaseOrVerifyAccess()` (no double-charging)
+- VybeLedger: append-only transaction ledger with balance calculation
+- ParticipantUnlockManager: tracks feature unlocks per participant per resource
+- QuotaManager: enforces question limits, checks unlock status
+- Initial grant of 10 Vybes per participant on session join
+
+#### UI (TODO)
 - Add charting library (Chart.js or D3.js)
-- Create src/components/resultsDisplay/ with multiple visualization components
-- Implement credit check before rendering premium visualizations
-- Create locked/preview state for premium features
-- Add "Unlock with X credits" buttons for gated content
+- Radar/spider chart visualizations for premium tiers
+- Export results as shareable image for social media
+- Locked/preview state for premium features
 
 ### Phase 7: Authentication & Twitter Integration
 Add user authentication with Twitter OAuth.
@@ -241,30 +251,40 @@ Add user authentication with Twitter OAuth.
 - Require Twitter auth for quiz participation
 - Implement credit check before revealing closest match
 
-### Phase 8: Payment & Monetization
-Integrate payment processing for credit purchases.
+### Phase 8: Payment & Monetization ✅
+**Status: COMPLETED** - Stripe integration with Vybes currency
 
-#### Payment Integration
-- Add Stripe SDK (stripe npm package)
-- Create src/services/payment.ts
-- Implement credit packages (e.g., $5 for 20 credits)
-- Build checkout flow and payment confirmation
-- Handle webhooks for payment verification
+#### Stripe Integration ✅
+- StripeService (`src/server/services/StripeService.ts`): checkout sessions, webhook handling, session verification
+- Payment routes (`src/server/routes/payment.ts`): POST /api/checkout, GET /api/checkout/verify, GET /api/packs
+- Webhook endpoint at POST /api/webhooks/stripe (raw body parsing before express.json)
+- Idempotent credit processing (tracks processed session IDs to prevent duplicates)
+- Session verification also credits Vybes if paid but not yet processed (handles server restart)
 
-#### Credit System
-- Add credits column to User model
-- Implement tiered credit deduction logic:
-  - Standard display features: 1-2 credits
-  - Premium display features: 5-10 credits
-  - Quiz participation for non-Space users: variable pricing
-- Create credit purchase UI
-- Display current credit balance prominently on results page
-- Handle insufficient credits gracefully with upgrade prompts
-- Show preview/teaser of locked content to encourage purchases
+#### Vybe Packs ✅
+- Starter Pack: 20 Vybes / $5
+- Pro Pack: 50 Vybes / $10
+- Ultimate Pack: 120 Vybes / $20
+- Stripe Price IDs configured via environment variables (STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_ULTIMATE)
 
-#### Pricing for Non-Space Users
+#### Vybes System ✅
+- "Credits" renamed to "Vybes" throughout the codebase
+- VybeLedger: append-only ledger with balance calculation
+- BillingService: idempotent purchase/access orchestration
+- VybesPage in frontend for balance display and pack purchase
+- Purchase flow: VybesPage → Stripe Checkout → PurchaseSuccess/PurchaseCancel pages
+- REST endpoints for balance/history: GET /api/vybes/balance, GET /api/vybes/history
+- StripeService shares VybeLedger instance with WebSocketHandler
+
+#### Environment Variables Required
+- `STRIPE_SECRET_KEY` - Stripe secret key
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+- `STRIPE_PRICE_STARTER` / `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ULTIMATE` - Stripe Price IDs
+- `APP_URL` - Application URL for checkout redirects (defaults to http://localhost:5173)
+
+#### Pricing for Non-Space Users (TODO)
 - Add participation fee for non-Twitter Space users
-- Charge credits for quiz entry
+- Charge Vybes for quiz entry
 - Display pricing information clearly
 
 ### Phase 9: Public Statistics Dashboard
@@ -364,11 +384,14 @@ Store responses in a **flat array** structure, not nested within participants. T
 - Status transitions: `live` (during Twitter Space) → `active` (open for new users) → `expired`
 - Match calculations work across participants who completed at different times
 
-### Monetization Model
-- Free tier: Basic match count and top 3 percentages (no names)
-- Standard tier (1-2 credits): Top 5 match names + basic visualizations
-- Premium tier (5-10 credits): Full radar charts, detailed breakdowns, social sharing
-- Non-Space users pay for quiz participation
+### Monetization Model (Vybes)
+Vybes is the in-app currency. Participants receive 10 Vybes on first joining a session.
+- PREVIEW tier (free): 2 matches from the middle of the list
+- TOP3 tier (2 Vybes): Top 3 matches with names
+- ALL tier (5 Vybes): Full match list
+- Question limit unlock (3 Vybes): Owner can add more questions
+- Vybes purchased via Stripe checkout (Starter $5/20, Pro $10/50, Ultimate $20/120)
+- Non-Space users pay for quiz participation (TODO)
 
 ### TypeScript Standards
 - Strict mode enabled
@@ -376,25 +399,33 @@ Store responses in a **flat array** structure, not nested within participants. T
 - ES2022 module syntax
 - All interfaces and types in `shared/types.ts` for client/server consistency
 
-### WebSocket Scaling Considerations
-Plan for Redis pub/sub when scaling to multiple server instances in production phases.
+### WebSocket Architecture
+WebSockets are used **only** for real-time game session communication (quiz flow, responses, matches, credits within sessions). All other operations (payment checkout, pack listing, vybes balance/history) use standard REST API endpoints. This separation allows WebSocket scaling independently of API scaling.
+
+Plan for Redis pub/sub when scaling WebSocket to multiple server instances in production phases.
 
 ## Testing Strategy
 
-### Unit Tests
-Focus on core business logic:
-- QuizSession class (CRUD operations, owner permissions)
-- Matching algorithm (various match percentages, dynamic questions)
-- Quiz manager (multi-session handling)
-- Participant manager (join/leave flows)
+### Unit Tests (`tests/unit/`)
+- QuizSession.test.ts - Session creation, owner permissions
+- QuestionAddition.test.ts - Question validation, exactly 2 options
+- ResponseSubmission.test.ts - Response recording, validation
+- MatchingService.test.ts - Match calculation, ranking
+- BillingService.test.ts - Idempotent purchases, balance checks
+- VybeLedger.test.ts - Append-only ledger, transaction history
+- ParticipantUnlock.test.ts - Feature unlock tracking
+- QuotaManager.test.ts - Question limits, unlock checks
 
-### Integration Tests
-Test end-to-end WebSocket flows:
-- Session creation and joining
-- Message broadcasting
-- Dynamic question addition
-- Response recording
-- Disconnection handling
+### Integration Tests (`tests/integration/`)
+- WebSocketHandler.test.ts - WebSocket message handling
+- WebSocketFlow.test.ts - Full session flows
+- ParticipantJoining.test.ts - Join/leave flows
+- DynamicMatchUpdates.test.ts - Match recalculation
+- PurchaseFlow.test.ts - End-to-end purchase flow
+- CacheBehavior.test.ts - Idempotency and caching
+
+### Edge Case Tests (`tests/edge-cases/`)
+- EdgeCases.test.ts - Boundary conditions and error handling
 
 ### Manual Testing Checklist
 1. Owner creates session and sees owner badge
@@ -413,8 +444,15 @@ Run manual tests by starting dev server and opening multiple browser tabs to `ht
 ## File References
 
 When making changes, key files to reference:
-- Server logic: `src/server.ts` (Phase 1) → `src/server/` (Phase 2+)
-- Client logic: `src/client.ts` (Phase 1) → `src/client/` (Phase 2+)
+- Server entry: `src/server.ts`
+- Server models: `src/server/models/` (QuizSession, Question, Response, Participant, VybeLedger, ParticipantUnlock, QuotaManager)
+- Server services: `src/server/services/` (WebSocketHandler, MatchingService, BillingService, StripeService)
+- Server routes: `src/server/routes/` (payment.ts, vybes.ts)
+- Shared types: `src/shared/types.ts`
+- Frontend entry: `src/frontend/App.tsx`
+- Frontend pages: `src/frontend/pages/`
+- Frontend stores: `src/frontend/store/` (websocketStore, authStore, quizStore, uiStore, draftStore)
+- Frontend components: `src/frontend/components/`
+- Tests: `tests/unit/`, `tests/integration/`, `tests/edge-cases/`
 - Build output: `dist/`
-- Configuration: `tsconfig.json`, `package.json`
-- Development plan: `README.md`, `CURRENT_ACTION.md`
+- Configuration: `tsconfig.json`, `package.json`, `.env`
