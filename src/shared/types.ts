@@ -50,6 +50,7 @@ export interface QuizState {
   activeParticipantCount: number;
   myResponses: string[]; // Response values in question order
   myCompletionStatus: boolean; // Has participant completed all questions
+  questionLimit: number; // Server-authoritative question limit for this session
 }
 
 export interface ParticipantInfo {

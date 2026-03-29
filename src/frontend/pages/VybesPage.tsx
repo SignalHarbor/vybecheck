@@ -249,6 +249,20 @@ export function VybesPage() {
           accessing exclusive visualizations, and more. New participants receive 10 free Vybes!
         </p>
       </div>
+
+      {/* FOR DEVELOPMENT ONLY — comment out in prod */}
+      <div className="mt-8 pt-4 border-t border-dashed border-gray-300">
+        <button
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          className="w-full py-2 px-4 bg-red-100 text-red-600 border border-red-300 rounded-lg text-xs font-mono cursor-pointer"
+        >
+          🧹 DEV: Clear localStorage & Reload
+        </button>
+      </div>
+      {/* END DEV ONLY */}
     </div>
   );
 }

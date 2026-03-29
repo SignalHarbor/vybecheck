@@ -12,7 +12,7 @@ export function DraftQuestionCard({ draft, index, onRemove, onSetOwnerResponse }
     <div className="bg-vybe-yellow/30 border-2 border-dashed border-vybe-yellow rounded-2xl p-4 mb-3 transition-all hover:bg-vybe-yellow/40">
       <div className="flex justify-between items-start mb-3">
         <h3 className="m-0 flex-1 text-base font-semibold text-gray-800">
-          Q{index + 1}: {draft.prompt}
+          {draft.isAIGenerated && <span title="AI Generated" className="mr-1">🤖</span>}Q{index + 1}: {draft.prompt}
         </h3>
         <button 
           onClick={() => onRemove(draft.id)} 

@@ -497,7 +497,8 @@ export class WebSocketHandler {
       participantCount: session.getParticipantCount(),
       activeParticipantCount: session.getActiveParticipantCount(),
       myResponses: session.getResponseValuesForParticipant(participantId),
-      myCompletionStatus: session.hasParticipantCompletedQuiz(participantId)
+      myCompletionStatus: session.hasParticipantCompletedQuiz(participantId),
+      questionLimit: this.quotaManager.getQuestionLimit(participantId, session.sessionId),
     };
 
     this.send(ws, { type: 'quiz:state', data: quizState });

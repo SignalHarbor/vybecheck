@@ -6,9 +6,11 @@ import { useQuizStore } from '../store/quizStore';
 import { useAuthStore } from '../store/authStore';
 import { DraftQuestionCard } from '../components/DraftQuestionCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import type { GeneratedQuestion } from '../../server/services/QuestionGeneratorService';
 
 // TODO: Move this to config or constants file
 const QUESTION_LIMIT_UPGRADE_COST = 3;
+const DEFAULT_QUESTION_LIMIT = 3;
 
 export function LabPage() {
   const { draftQuestions, addDraft, removeDraft, clearDrafts, setOwnerResponse } = useDraftStore();
@@ -24,8 +26,16 @@ export function LabPage() {
   const [ownerResponse, setOwnerResponseState] = useState<string>('');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(false);
+  const [pendingNeedsUpgrade, setPendingNeedsUpgrade] = useState(false);
   const prevSessionIdRef = useRef<string | null>(null);
+
+  // AI Generation state
+  const [showAISection, setShowAISection] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState('');
 
   // Check if session is active (has sessionId and quizState)
   const hasActiveSession = Boolean(sessionId && quizState);
@@ -35,6 +45,13 @@ export function LabPage() {
     if (pendingPublish && sessionId && sessionId !== prevSessionIdRef.current) {
       // Session was just created, publish the drafts
       const questionsToPublish = [...draftQuestions];
+
+      // Auto-upgrade if needed (unlock is processed before adds on server)
+      if (pendingNeedsUpgrade) {
+        send({ type: 'question:unlock-limit' });
+        setPendingNeedsUpgrade(false);
+      }
+
       questionsToPublish.forEach(draft => {
         send({
           type: 'question:add',
@@ -50,15 +67,9 @@ export function LabPage() {
       showNotification(`Session created with ${questionsToPublish.length} question(s)`);
     }
     prevSessionIdRef.current = sessionId;
-  }, [sessionId, pendingPublish, draftQuestions, send, clearDrafts, showNotification]);
+  }, [sessionId, pendingPublish, pendingNeedsUpgrade, draftQuestions, send, clearDrafts, showNotification]);
 
   const addQuestionToDraft = () => {
-    // Check question limit first
-    if (hasReachedLimit) {
-      showError(`Question limit reached (${questionLimit}). Remove drafts or upgrade to add more.`);
-      return;
-    }
-
     if (!questionPrompt.trim() || !option1.trim() || !option2.trim()) {
       showError('Please fill in all fields');
       return;
@@ -77,6 +88,11 @@ export function LabPage() {
     showNotification('Question added to drafts');
   };
 
+  const needsUpgradeForPublish = () => {
+    const availableSlots = questionLimit - publishedQuestionsCount;
+    return draftQuestions.length > availableSlots && !hasUpgraded;
+  };
+
   const publishDraftQuestions = () => {
     // Check if all drafts have owner responses
     const unansweredDrafts = draftQuestions.filter(q => !q.ownerResponse);
@@ -84,10 +100,23 @@ export function LabPage() {
       showError(`Please answer all questions before publishing (${unansweredDrafts.length} unanswered)`);
       return;
     }
-    
-    // If no active session, show create session dialog
+
+    // Check if upgrade is needed
+    const needsUpgrade = draftQuestions.length > DEFAULT_QUESTION_LIMIT - publishedQuestionsCount && !hasUpgraded;
+
+    // If no active session, show create session dialog (upgrade handled in create flow)
     if (!hasActiveSession) {
-      setShowCreateSessionDialog(true);
+      if (needsUpgrade) {
+        setShowUpgradeDialog(true);
+      } else {
+        setShowCreateSessionDialog(true);
+      }
+      return;
+    }
+
+    // In active session, check if upgrade needed
+    if (needsUpgrade) {
+      setShowUpgradeDialog(true);
       return;
     }
     
@@ -116,14 +145,43 @@ export function LabPage() {
     });
   };
 
+  const confirmUpgradeAndPublish = () => {
+    setShowUpgradeDialog(false);
+    const questionsToPublish = [...draftQuestions];
+
+    if (!hasActiveSession) {
+      // Need to create session first, then upgrade, then publish
+      setPendingNeedsUpgrade(true);
+      setPendingPublish(true);
+      send({ type: 'session:create', data: {} });
+    } else {
+      // Already in session — upgrade then publish immediately
+      send({ type: 'question:unlock-limit' });
+
+      clearDrafts();
+      showNotification(`Upgrading limit and publishing ${questionsToPublish.length} question(s)...`);
+
+      questionsToPublish.forEach(draft => {
+        send({
+          type: 'question:add',
+          data: {
+            prompt: draft.prompt,
+            options: draft.options,
+            ownerResponse: draft.ownerResponse
+          }
+        });
+      });
+    }
+  };
+
   const confirmCreateSession = () => {
     setShowCreateSessionDialog(false);
     setPendingPublish(true);
     send({ type: 'session:create', data: {} });
   };
 
-  // Get question limit from authStore
-  const questionLimit = getQuestionLimit();
+  // Question limit: use server-authoritative value when in a session, fallback to client
+  const questionLimit = quizState?.questionLimit ?? getQuestionLimit();
   const publishedQuestionsCount = hasActiveSession ? (quizState?.questions.length ?? 0) : 0;
   const totalQuestionsCount = publishedQuestionsCount + draftQuestions.length;
   const hasReachedLimit = totalQuestionsCount >= questionLimit;
@@ -139,6 +197,50 @@ export function LabPage() {
     send({ type: 'question:unlock-limit' });
     // isUnlocking will be reset when we receive question:limit-unlocked or error
     setTimeout(() => setIsUnlocking(false), 3000); // Fallback reset
+  };
+
+  const handleAIGenerate = async () => {
+    if (!audioFile) {
+      showError('Please select an audio file');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationStatus('Uploading and transcribing audio...');
+
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioFile);
+      formData.append('count', '5');
+
+      const res = await fetch('/api/ai/generate-questions', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Generation failed');
+      }
+
+      setGenerationStatus('Generating questions...');
+      const data = await res.json() as { questions: GeneratedQuestion[]; transcript: string };
+
+      // Add generated questions to drafts
+      for (const q of data.questions) {
+        addDraft(q.prompt, q.options, undefined, true);
+      }
+
+      showNotification(`Generated ${data.questions.length} questions from audio`);
+      setAudioFile(null);
+      setShowAISection(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      showError(`AI generation failed: ${message}`);
+    } finally {
+      setIsGenerating(false);
+      setGenerationStatus('');
+    }
   };
 
   return (
@@ -163,61 +265,65 @@ export function LabPage() {
         </div>
       )}
 
-      {/* Combined Question Info Banner */}
-      <div className={`py-4 px-5 mb-4 rounded-lg border ${
-        hasReachedLimit ? 'bg-red-100 border-red-300' : 'bg-indigo-50 border-indigo-200'
-      }`}>
-        <div className="flex justify-between items-center mb-2">
-          <span className={`text-sm font-semibold ${hasReachedLimit ? 'text-red-800' : 'text-indigo-700'}`}>
-            📊 Questions in Session
-          </span>
-          <span className={`text-lg font-bold ${hasReachedLimit ? 'text-red-800' : 'text-indigo-700'}`}>
-            {publishedQuestionsCount}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <div>
-            <span className={`text-sm font-semibold ${hasReachedLimit ? 'text-red-800' : 'text-indigo-700'}`}>
-              {hasReachedLimit ? '⚠️ Question Limit Reached' : '✅ Question Limit'}
-            </span>
-            {hasReachedLimit && !hasUpgraded && (
-              <span className="text-xs text-red-800 ml-2">
-                Upgrade to add more
-              </span>
+      {/* AI Generate from Audio */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowAISection(!showAISection)}
+          className="w-full py-3 px-4 bg-white rounded-lg border border-gray-200 shadow-sm cursor-pointer text-left flex justify-between items-center"
+        >
+          <span className="text-sm font-semibold text-gray-800">🤖 Generate Questions from Audio</span>
+          <span className="text-gray-400">{showAISection ? '▲' : '▼'}</span>
+        </button>
+        {showAISection && (
+          <div className="mt-2 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 mb-3">
+              Upload an audio file to automatically generate quiz questions using AI.
+            </p>
+            <input
+              type="file"
+              accept=".wav,.mp3,.m4a,.webm,.ogg,.flac"
+              onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+              disabled={isGenerating}
+              className="w-full mb-3 text-sm"
+            />
+            {audioFile && (
+              <p className="text-xs text-gray-500 mb-3">
+                Selected: {audioFile.name} ({(audioFile.size / 1024).toFixed(0)}KB)
+              </p>
             )}
-          </div>
-          <span className={`text-lg font-bold ${hasReachedLimit ? 'text-red-800' : 'text-indigo-700'}`}>
-            {totalQuestionsCount} / {questionLimit}
-          </span>
-        </div>
-
-        {/* Upgrade Button - show when at limit and not yet upgraded */}
-        {hasReachedLimit && !hasUpgraded && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="flex justify-between items-center">
-              <div>
-                <div className="text-sm font-semibold text-gray-800">
-                  Upgrade to 10 Questions
-                </div>
-                <div className="text-xs text-gray-500">
-                  Your balance: {vybesBalance} ✨
-                </div>
-              </div>
-              <button
-                onClick={handleUnlockQuestionLimit}
-                disabled={!canAffordUpgrade || isUnlocking}
-                className={`py-2.5 px-5 rounded-lg border-none font-semibold text-sm transition-all ${
-                  canAffordUpgrade
-                    ? 'bg-gradient-to-br from-vybe-blue to-vybe-purple text-white cursor-pointer'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                } ${isUnlocking ? 'opacity-70' : 'opacity-100'}`}
-              >
-                {isUnlocking ? 'Unlocking...' : `Unlock (${QUESTION_LIMIT_UPGRADE_COST} ✨)`}
-              </button>
-            </div>
+            {generationStatus && (
+              <p className="text-xs text-indigo-600 mb-3 animate-pulse">
+                {generationStatus}
+              </p>
+            )}
+            <button
+              onClick={handleAIGenerate}
+              disabled={!audioFile || isGenerating}
+              className={`w-full py-3 px-4 border-none rounded-xl cursor-pointer text-sm font-semibold transition-all ${
+                !audioFile || isGenerating
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-br from-vybe-blue to-vybe-purple text-white'
+              }`}
+            >
+              {isGenerating ? 'Generating...' : '🎙️ Transcribe & Generate Questions'}
+            </button>
           </div>
         )}
       </div>
+
+      {/* Session Question Stats - only show when in a session */}
+      {hasActiveSession && (
+        <div className="py-4 px-5 mb-4 rounded-lg border bg-indigo-50 border-indigo-200">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold text-indigo-700">
+              📊 Questions in Session
+            </span>
+            <span className="text-lg font-bold text-indigo-700">
+              {publishedQuestionsCount} / {questionLimit}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-5 rounded-[20px] mb-5 shadow-card">
         <h2 className="mt-0 mb-4 text-gray-800 text-xl font-bold">Add Question</h2>
@@ -226,7 +332,6 @@ export function LabPage() {
           placeholder="Question prompt"
           value={questionPrompt}
           onChange={(e) => setQuestionPrompt(e.target.value)}
-          disabled={hasReachedLimit}
           className="w-full mb-3"
         />
         <input
@@ -234,7 +339,6 @@ export function LabPage() {
           placeholder="Option 1"
           value={option1}
           onChange={(e) => setOption1(e.target.value)}
-          disabled={hasReachedLimit}
           className="w-full mb-3"
         />
         <input
@@ -242,7 +346,6 @@ export function LabPage() {
           placeholder="Option 2"
           value={option2}
           onChange={(e) => setOption2(e.target.value)}
-          disabled={hasReachedLimit}
           className="w-full mb-3"
         />
 
@@ -255,8 +358,7 @@ export function LabPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setOwnerResponseState(option1)}
-                disabled={hasReachedLimit}
-                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
                   ownerResponse === option1
                     ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
                     : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
@@ -267,8 +369,7 @@ export function LabPage() {
               </button>
               <button
                 onClick={() => setOwnerResponseState(option2)}
-                disabled={hasReachedLimit}
-                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
                   ownerResponse === option2
                     ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
                     : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
@@ -283,12 +384,9 @@ export function LabPage() {
 
         <button
           onClick={addQuestionToDraft}
-          disabled={hasReachedLimit}
-          className={`w-full py-4 px-6 border-2 border-gray-200 rounded-xl cursor-pointer text-[17px] font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-white text-vybe-blue shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:bg-gray-50 active:scale-[0.97] ${
-            hasReachedLimit ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className="w-full py-4 px-6 border-2 border-gray-200 rounded-xl cursor-pointer text-[17px] font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-white text-vybe-blue shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:bg-gray-50 active:scale-[0.97]"
         >
-          {hasReachedLimit ? '🔒 Limit Reached' : '+ Add to Drafts'}
+          + Add to Drafts
         </button>
       </div>
 
@@ -338,6 +436,16 @@ export function LabPage() {
         onCancel={() => setShowCreateSessionDialog(false)}
         confirmText="Create & Publish"
       />
+
+      <ConfirmDialog
+        isOpen={showUpgradeDialog}
+        title="Upgrade Required"
+        message={`You have ${draftQuestions.length} questions but the free limit is ${DEFAULT_QUESTION_LIMIT}. Upgrade to ${questionLimit > DEFAULT_QUESTION_LIMIT ? questionLimit : 10} questions for ${QUESTION_LIMIT_UPGRADE_COST} Vybes?${vybesBalance < QUESTION_LIMIT_UPGRADE_COST ? ` (You only have ${vybesBalance} Vybes — not enough!)` : ` (You have ${vybesBalance} Vybes)`}`}
+        onConfirm={confirmUpgradeAndPublish}
+        onCancel={() => setShowUpgradeDialog(false)}
+        confirmText={vybesBalance >= QUESTION_LIMIT_UPGRADE_COST ? `Upgrade & Publish (${QUESTION_LIMIT_UPGRADE_COST} ✨)` : 'Not Enough Vybes'}
+      />
+
     </div>
   );
 }

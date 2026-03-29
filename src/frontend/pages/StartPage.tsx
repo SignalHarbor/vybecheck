@@ -88,6 +88,7 @@ export function StartPage() {
       <p className="text-gray-400 text-[13px] mt-3 max-w-[320px] text-center">
         Join as a participant to answer questions
       </p>
+
     </div>
   );
 }

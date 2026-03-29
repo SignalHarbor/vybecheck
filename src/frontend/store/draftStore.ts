@@ -5,25 +5,30 @@ export interface DraftQuestion {
   prompt: string;
   options: [string, string];
   ownerResponse?: string; // Owner's answer to this question
+  isAIGenerated?: boolean;
 }
 
 interface DraftStore {
   draftQuestions: DraftQuestion[];
-  addDraft: (prompt: string, options: [string, string], ownerResponse?: string) => void;
+  addDraft: (prompt: string, options: [string, string], ownerResponse?: string, isAIGenerated?: boolean) => void;
   removeDraft: (id: string) => void;
   setOwnerResponse: (id: string, response: string) => void;
   clearDrafts: () => void;
 }
 
+let draftCounter = 0;
+
 export const useDraftStore = create<DraftStore>((set) => ({
   draftQuestions: [],
   
-  addDraft: (prompt, options, ownerResponse) => {
+  addDraft: (prompt, options, ownerResponse, isAIGenerated) => {
+    draftCounter++;
     const draft: DraftQuestion = {
-      id: `draft-${Date.now()}`,
+      id: `draft-${Date.now()}-${draftCounter}`,
       prompt,
       options,
       ownerResponse,
+      isAIGenerated,
     };
     set((state) => ({ 
       draftQuestions: [...state.draftQuestions, draft] 

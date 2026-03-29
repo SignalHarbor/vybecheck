@@ -228,18 +228,23 @@ function App() {
     <div className="w-screen max-w-app h-screen mx-auto bg-gray-100 flex flex-col overflow-hidden shadow-app relative pb-[env(safe-area-inset-bottom)]">
       <Header title={pageTitles[activePage]} />
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 pb-[calc(80px+env(safe-area-inset-bottom))] relative min-h-0 [-webkit-overflow-scrolling:touch]">
-        {notification && (
-          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white py-3.5 px-5 rounded-xl mb-4 text-center font-medium shadow-emerald animate-slide-down">
-            {notification}
-          </div>
-        )}
-        {error && (
-          <div className="bg-gradient-to-br from-red-500 to-red-600 text-white py-3.5 px-5 rounded-xl mb-4 text-center font-medium shadow-[0_4px_16px_rgba(239,68,68,0.3)] animate-slide-down">
-            {error}
-          </div>
-        )}
+      {/* Fixed toast notifications */}
+      {(notification || error) && (
+        <div className="absolute top-[60px] left-0 right-0 z-50 px-4 pointer-events-none">
+          {notification && (
+            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white py-3 px-5 rounded-xl mb-2 text-center text-sm font-medium shadow-emerald animate-slide-down pointer-events-auto">
+              {notification}
+            </div>
+          )}
+          {error && (
+            <div className="bg-gradient-to-br from-red-500 to-red-600 text-white py-3 px-5 rounded-xl mb-2 text-center text-sm font-medium shadow-[0_4px_16px_rgba(239,68,68,0.3)] animate-slide-down pointer-events-auto">
+              {error}
+            </div>
+          )}
+        </div>
+      )}
 
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 pb-[calc(80px+env(safe-area-inset-bottom))] relative min-h-0 [-webkit-overflow-scrolling:touch]">
         {activePage === 'lab' && <LabPage />}
         {activePage === 'quiz' && <QuizPage />}
         {activePage === 'lobby' && <LobbyPage />}

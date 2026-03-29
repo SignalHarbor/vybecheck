@@ -6,6 +6,7 @@ import { WebSocketHandler } from './server/services/WebSocketHandler';
 import { StripeService } from './server/services/StripeService';
 import { createPaymentRoutes, createWebhookHandler } from './server/routes/payment';
 import { createVybesRoutes } from './server/routes/vybes';
+import { createAIRoutes } from './server/routes/ai';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -47,6 +48,9 @@ app.use('/api', createPaymentRoutes(stripeService));
 
 // Vybes routes (balance, history)
 app.use('/api/vybes', createVybesRoutes(wsHandler.getVybeLedger()));
+
+// AI routes (transcription + question generation)
+app.use('/api/ai', createAIRoutes());
 
 // SPA catch-all: serve index.html for any non-API routes (client-side routing)
 app.get('*', (_req, res) => {
