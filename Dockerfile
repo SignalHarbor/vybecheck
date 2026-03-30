@@ -28,6 +28,9 @@ RUN npm ci --omit=dev
 # Copy built files from build stage
 COPY --from=build /app/dist ./dist
 
+# Copy test audio files for AI generation
+COPY test-audio ./test-audio
+
 # Expose port
 EXPOSE 3000
 
