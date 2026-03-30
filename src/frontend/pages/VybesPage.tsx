@@ -254,12 +254,21 @@ export function VybesPage() {
       <div className="mt-8 pt-4 border-t border-dashed border-gray-300">
         <button
           onClick={() => {
+            // Preserve AI cache keys (they cost money to generate)
+            const aiCacheEntries: [string, string][] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key?.startsWith('vybecheck_ai_cache_')) {
+                aiCacheEntries.push([key, localStorage.getItem(key)!]);
+              }
+            }
             localStorage.clear();
+            aiCacheEntries.forEach(([k, v]) => localStorage.setItem(k, v));
             window.location.reload();
           }}
           className="w-full py-2 px-4 bg-red-100 text-red-600 border border-red-300 rounded-lg text-xs font-mono cursor-pointer"
         >
-          🧹 DEV: Clear localStorage & Reload
+          🧹 DEV: Clear localStorage & Reload (preserves AI cache)
         </button>
       </div>
       {/* END DEV ONLY */}

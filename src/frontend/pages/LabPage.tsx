@@ -33,9 +33,20 @@ export function LabPage() {
 
   // AI Generation state
   const [showAISection, setShowAISection] = useState(false);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [testFiles, setTestFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState('');
+
+  // Fetch test audio files when AI section opens
+  useEffect(() => {
+    if (showAISection && testFiles.length === 0) {
+      fetch('/api/ai/test-files')
+        .then(res => res.json())
+        .then((data: { files: string[] }) => setTestFiles(data.files))
+        .catch(() => showError('Failed to load test audio files'));
+    }
+  }, [showAISection]);
 
   // Check if session is active (has sessionId and quizState)
   const hasActiveSession = Boolean(sessionId && quizState);
@@ -199,40 +210,55 @@ export function LabPage() {
     setTimeout(() => setIsUnlocking(false), 3000); // Fallback reset
   };
 
+  const AI_CACHE_PREFIX = 'vybecheck_ai_cache_';
+
   const handleAIGenerate = async () => {
-    if (!audioFile) {
-      showError('Please select an audio file');
+    if (!selectedFile) {
+      showError('Please select a test audio file');
       return;
     }
 
     setIsGenerating(true);
-    setGenerationStatus('Uploading and transcribing audio...');
 
     try {
-      const formData = new FormData();
-      formData.append('audio', audioFile);
-      formData.append('count', '5');
+      // Check localStorage cache first
+      const cacheKey = `${AI_CACHE_PREFIX}${selectedFile}`;
+      const cached = localStorage.getItem(cacheKey);
 
-      const res = await fetch('/api/ai/generate-questions', {
-        method: 'POST',
-        body: formData,
-      });
+      let data: { questions: GeneratedQuestion[]; transcript: string };
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Generation failed');
+      if (cached) {
+        setGenerationStatus('Using cached questions...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+        data = JSON.parse(cached);
+      } else {
+        setGenerationStatus('Transcribing audio (this may take a moment)...');
+
+        const res = await fetch('/api/ai/generate-from-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: selectedFile, count: 5 }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Generation failed');
+        }
+
+        setGenerationStatus('Generating questions...');
+        data = await res.json();
+
+        // Cache the result
+        localStorage.setItem(cacheKey, JSON.stringify(data));
       }
-
-      setGenerationStatus('Generating questions...');
-      const data = await res.json() as { questions: GeneratedQuestion[]; transcript: string };
 
       // Add generated questions to drafts
       for (const q of data.questions) {
         addDraft(q.prompt, q.options, undefined, true);
       }
 
-      showNotification(`Generated ${data.questions.length} questions from audio`);
-      setAudioFile(null);
+      const source = cached ? '(cached)' : '(new)';
+      showNotification(`Generated ${data.questions.length} questions ${source}`);
       setShowAISection(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -277,20 +303,24 @@ export function LabPage() {
         {showAISection && (
           <div className="mt-2 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
             <p className="text-xs text-gray-500 mb-3">
-              Upload an audio file to automatically generate quiz questions using AI.
+              Select a test audio file to generate quiz questions using AI.
             </p>
-            <input
-              type="file"
-              accept=".wav,.mp3,.m4a,.webm,.ogg,.flac"
-              onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+            <select
+              value={selectedFile}
+              onChange={(e) => setSelectedFile(e.target.value)}
               disabled={isGenerating}
-              className="w-full mb-3 text-sm"
-            />
-            {audioFile && (
-              <p className="text-xs text-gray-500 mb-3">
-                Selected: {audioFile.name} ({(audioFile.size / 1024).toFixed(0)}KB)
-              </p>
-            )}
+              className="w-full mb-3 text-sm py-2.5 px-3 rounded-lg border border-gray-200 bg-white"
+            >
+              <option value="">Select audio file...</option>
+              {testFiles.map(f => {
+                const isCached = Boolean(localStorage.getItem(`${AI_CACHE_PREFIX}${f}`));
+                return (
+                  <option key={f} value={f}>
+                    {f}{isCached ? ' ✓ cached' : ''}
+                  </option>
+                );
+              })}
+            </select>
             {generationStatus && (
               <p className="text-xs text-indigo-600 mb-3 animate-pulse">
                 {generationStatus}
@@ -298,14 +328,14 @@ export function LabPage() {
             )}
             <button
               onClick={handleAIGenerate}
-              disabled={!audioFile || isGenerating}
+              disabled={!selectedFile || isGenerating}
               className={`w-full py-3 px-4 border-none rounded-xl cursor-pointer text-sm font-semibold transition-all ${
-                !audioFile || isGenerating
+                !selectedFile || isGenerating
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-gradient-to-br from-vybe-blue to-vybe-purple text-white'
               }`}
             >
-              {isGenerating ? 'Generating...' : '🎙️ Transcribe & Generate Questions'}
+              {isGenerating ? 'Generating...' : '🎙️ Generate Questions'}
             </button>
           </div>
         )}

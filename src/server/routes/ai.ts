@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { TranscriptionService } from '../services/TranscriptionService';
 import { QuestionGeneratorService } from '../services/QuestionGeneratorService';
+
+const TEST_AUDIO_DIR = path.resolve('test-audio');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -29,24 +33,82 @@ export function createAIRoutes(): Router {
   const questionGeneratorService = new QuestionGeneratorService();
 
   /**
+   * GET /api/ai/test-files
+   * List available test audio files from the test-audio/ directory
+   */
+  router.get('/test-files', (_req: Request, res: Response) => {
+    try {
+      if (!fs.existsSync(TEST_AUDIO_DIR)) {
+        res.json({ files: [] });
+        return;
+      }
+      const files = fs.readdirSync(TEST_AUDIO_DIR)
+        .filter(f => /\.(wav|mp3|m4a|webm|ogg|flac)$/i.test(f));
+      res.json({ files });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({ error: message });
+    }
+  });
+
+  /**
+   * POST /api/ai/generate-from-test
+   * Generate questions from a test audio file on disk
+   *
+   * Body: { filename: string, count?: number }
+   * Returns: { questions: [{ prompt, options }], transcript: string }
+   */
+  router.post('/generate-from-test', async (req: Request, res: Response) => {
+    try {
+      const { filename, count: rawCount } = req.body;
+      const count = parseInt(rawCount, 10) || 5;
+
+      if (!filename || typeof filename !== 'string') {
+        res.status(400).json({ error: 'Missing filename' });
+        return;
+      }
+
+      // Prevent path traversal
+      const safeName = path.basename(filename);
+      const filePath = path.join(TEST_AUDIO_DIR, safeName);
+
+      if (!fs.existsSync(filePath)) {
+        res.status(404).json({ error: `File not found: ${safeName}` });
+        return;
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
+        return;
+      }
+
+      const audioBuffer = fs.readFileSync(filePath);
+
+      // Step 1: Transcribe
+      console.log(`Transcribing test file ${safeName} (${(audioBuffer.length / 1024).toFixed(1)}KB)...`);
+      const { text: transcript } = await transcriptionService.transcribe(audioBuffer, safeName);
+      console.log(`Transcription complete (${transcript.length} chars)`);
+
+      // Step 2: Generate questions
+      console.log(`Generating ${count} questions...`);
+      const questions = await questionGeneratorService.generate(transcript, count);
+      console.log(`Generated ${questions.length} questions`);
+
+      res.json({ questions, transcript });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error('AI generation error:', message);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  /**
    * POST /api/ai/generate-questions
    * Upload an audio file → transcribe → generate quiz questions
    *
    * Body: multipart/form-data with field "audio" (file) and optional "count" (number)
    * Returns: { questions: [{ prompt, options }], transcript: string }
    */
-  // TODO: Set to false to use real OpenAI API
-  const USE_STUB = true;
-
-  const STUB_QUESTIONS = [
-    { prompt: 'Is Bitcoin the future of money?', options: ['Yes', 'No'] as [string, string] },
-    { prompt: 'Which matters more in crypto?', options: ['Decentralization', 'Speed'] as [string, string] },
-    { prompt: 'Will Ethereum flip Bitcoin?', options: ['Agree', 'Disagree'] as [string, string] },
-    { prompt: 'Should governments regulate crypto?', options: ['Yes', 'No'] as [string, string] },
-    { prompt: 'Is DeFi ready for mainstream adoption?', options: ['Ready', 'Not yet'] as [string, string] },
-    { prompt: 'Are NFTs a lasting innovation?', options: ['Lasting', 'Fad'] as [string, string] },
-  ];
-
   router.post(
     '/generate-questions',
     upload.single('audio'),
@@ -54,17 +116,6 @@ export function createAIRoutes(): Router {
       try {
         if (!req.file) {
           res.status(400).json({ error: 'No audio file provided' });
-          return;
-        }
-
-        if (USE_STUB) {
-          // Simulate processing delay
-          console.log(`[STUB] Simulating transcription + generation for ${req.file.originalname}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          const count = parseInt(req.body.count, 10) || 5;
-          const questions = STUB_QUESTIONS.slice(0, count);
-          console.log(`[STUB] Returning ${questions.length} static questions`);
-          res.json({ questions, transcript: '[STUB] Simulated transcript content.' });
           return;
         }
 
