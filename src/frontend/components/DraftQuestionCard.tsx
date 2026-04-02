@@ -14,9 +14,9 @@ export function DraftQuestionCard({ draft, index, onRemove, onSetOwnerResponse }
         <h3 className="m-0 flex-1 text-base font-semibold text-gray-800">
           {draft.isAIGenerated && <span title="AI Generated" className="mr-1">🤖</span>}Q{index + 1}: {draft.prompt}
         </h3>
-        <button 
-          onClick={() => onRemove(draft.id)} 
-          className="ml-3 bg-red-500/10 text-red-500 border-none w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer text-base font-semibold transition-all flex-shrink-0 [-webkit-tap-highlight-color:transparent] hover:bg-red-500/20 active:scale-95"
+        <button
+          onClick={() => onRemove(draft.id)}
+          className="ml-3 bg-red-500/10 text-red-500 border-none w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer text-base font-semibold transition-all shrink-0 [-webkit-tap-highlight-color:transparent] hover:bg-red-500/20 active:scale-95"
         >
           ✕
         </button>
@@ -25,7 +25,7 @@ export function DraftQuestionCard({ draft, index, onRemove, onSetOwnerResponse }
         {draft.options.map((option) => {
           const isSelected = draft.ownerResponse === option;
           return (
-            <div 
+            <div
               key={option}
               onClick={() => onSetOwnerResponse?.(draft.id, option)}
               className={`border-2 rounded-xl py-3 px-4 font-medium text-[15px] flex items-center justify-between transition-all ${

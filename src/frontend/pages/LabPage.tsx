@@ -130,7 +130,7 @@ export function LabPage() {
       setShowUpgradeDialog(true);
       return;
     }
-    
+
     setShowPublishDialog(true);
   };
 
@@ -332,7 +332,7 @@ export function LabPage() {
               className={`w-full py-3 px-4 border-none rounded-xl cursor-pointer text-sm font-semibold transition-all ${
                 !selectedFile || isGenerating
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-br from-vybe-blue to-vybe-purple text-white'
+                  : 'bg-linear-to-br from-vybe-blue to-vybe-purple text-white'
               }`}
             >
               {isGenerating ? 'Generating...' : '🎙️ Generate Questions'}
@@ -390,7 +390,7 @@ export function LabPage() {
                 onClick={() => setOwnerResponseState(option1)}
                 className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
                   ownerResponse === option1
-                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
+                    ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
                     : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
                 }`}
               >
@@ -401,7 +401,7 @@ export function LabPage() {
                 onClick={() => setOwnerResponseState(option2)}
                 className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
                   ownerResponse === option2
-                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
+                    ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
                     : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
                 }`}
               >
@@ -426,7 +426,7 @@ export function LabPage() {
             <h2 className="text-gray-800 text-xl font-bold m-0">Draft Questions ({draftQuestions.length})</h2>
             <button
               onClick={publishDraftQuestions}
-              className="py-2.5 px-5 text-[15px] border-none rounded-xl cursor-pointer font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-gradient-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97]"
+              className="py-2.5 px-5 text-[15px] border-none rounded-xl cursor-pointer font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-linear-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97]"
             >
               Publish All
             </button>
