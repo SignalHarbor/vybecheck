@@ -39,13 +39,15 @@ export class QuizSession {
   }
 
   /**
-   * Generate a unique session ID
-   * Uses timestamp + random string for uniqueness
+   * Generate a short, shareable session ID (6 chars)
    */
   private generateSessionId(): string {
-    const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 8);
-    return `${timestamp}${randomPart}`;
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no i/l/o/0/1/I/L/O to avoid ambiguity
+    let id = '';
+    for (let i = 0; i < 6; i++) {
+      id += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return id;
   }
 
   /**
