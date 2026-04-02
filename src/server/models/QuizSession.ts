@@ -2,6 +2,14 @@ import type { Question } from './Question';
 import type { Response } from './Response';
 import type { Participant } from './Participant';
 
+export interface ParticipantProgress {
+  participantId: string;
+  username: string | null;
+  completionPercent: number;
+  isOwner: boolean;
+  isActive: boolean;
+}
+
 export interface QuizSessionData {
   sessionId: string;
   ownerId: string;
@@ -10,6 +18,7 @@ export interface QuizSessionData {
   quiz: string[];                          // Ordered list of question IDs
   responses: Response[];                    // Flat array of all responses
   participants: Map<string, Participant>;  // All participants
+  resultsReleased: boolean;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -22,6 +31,7 @@ export class QuizSession {
   public quiz: string[];
   public responses: Response[];
   public participants: Map<string, Participant>;
+  public resultsReleased: boolean;
   public readonly createdAt: Date;
   public readonly expiresAt: Date;
 
@@ -34,6 +44,7 @@ export class QuizSession {
     this.quiz = [];
     this.responses = [];
     this.participants = new Map();
+    this.resultsReleased = false;
     this.createdAt = new Date();
     this.expiresAt = this.calculateExpirationDate();
   }
@@ -191,9 +202,47 @@ export class QuizSession {
       quiz: this.quiz,
       responses: this.responses,
       participants: this.participants,
+      resultsReleased: this.resultsReleased,
       createdAt: this.createdAt,
       expiresAt: this.expiresAt
     };
+  }
+
+  /**
+   * Start the session (live → active). Owner only.
+   */
+  startSession(): void {
+    if (this.status !== 'live') {
+      throw new Error('Can only start a session that is in lobby (live) status');
+    }
+    this.status = 'active';
+  }
+
+  /**
+   * Release results so participants can view matches.
+   */
+  releaseResults(): void {
+    if (this.status !== 'active') {
+      throw new Error('Can only release results for an active session');
+    }
+    this.resultsReleased = true;
+  }
+
+  /**
+   * Get completion progress for all participants.
+   */
+  getParticipantProgress(): ParticipantProgress[] {
+    const totalQuestions = this.questions.length;
+    return Array.from(this.participants.values()).map(p => {
+      const answered = this.responses.filter(r => r.participantId === p.id).length;
+      return {
+        participantId: p.id,
+        username: p.username,
+        completionPercent: totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0,
+        isOwner: p.isOwner,
+        isActive: p.isActive,
+      };
+    });
   }
 
   /**

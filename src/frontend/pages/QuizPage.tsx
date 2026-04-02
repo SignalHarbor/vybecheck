@@ -22,7 +22,7 @@ const TIER_LABELS: Record<MatchTier, string> = {
 };
 
 export function QuizPage() {
-  const { sessionId, quizState, matchState, setMatchesLoading } = useQuizStore();
+  const { sessionId, quizState, matchState, setMatchesLoading, isOwner } = useQuizStore();
   const { send } = useWebSocketStore();
   const { vybesBalance, hasFeatureUnlock } = useAuthStore();
   const { setActivePage } = useUIStore();
@@ -116,6 +116,25 @@ export function QuizPage() {
     );
   }
 
+  // Session hasn't started yet (still in lobby)
+  if (quizState.status === 'live') {
+    return (
+      <div className="w-full min-h-full">
+        <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+          <div className="text-6xl mb-4 animate-pulse">⏳</div>
+          <h2 className="text-xl font-bold text-gray-800 m-0 mb-2">Session Not Started</h2>
+          <p className="text-base text-gray-500 m-0">Waiting for the host to start the session...</p>
+          <button
+            onClick={() => setActivePage('lobby')}
+            className="mt-6 py-3 px-6 border-2 border-gray-200 rounded-xl cursor-pointer text-[15px] font-semibold bg-white text-vybe-blue active:scale-[0.97]"
+          >
+            Go to Lobby
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (quizState.questions.length === 0) {
     return (
       <div className="w-full min-h-full">
@@ -189,11 +208,19 @@ export function QuizPage() {
             })}
           </div>
         </div>
+      ) : !quizState.resultsReleased && !isOwner ? (
+        /* Waiting for host to release results */
+        <div className="bg-white rounded-3xl py-8 px-6 shadow-[0_4px_24px_rgba(0,0,0,0.08)] flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl flex items-center justify-center text-[32px] mb-6">✨</div>
+          <h2 className="text-2xl font-bold text-gray-800 m-0 mb-3 leading-tight">You've completed the quiz!</h2>
+          <p className="text-[15px] text-gray-500 m-0 mb-4 leading-relaxed">Waiting for the host to release results...</p>
+          <div className="text-4xl animate-pulse">⏳</div>
+        </div>
       ) : (
-        /* Matches Section - shown after completion */
+        /* Matches Section - shown after results released */
         <div className="bg-white rounded-3xl py-8 px-6 shadow-[0_4px_24px_rgba(0,0,0,0.08)] flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-2xl flex items-center justify-center text-[32px] mb-6">✨</div>
-          <h2 className="text-2xl font-bold text-gray-800 m-0 mb-3 leading-tight">You've completed the quiz!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 m-0 mb-3 leading-tight">Results are in!</h2>
           <p className="text-[15px] text-gray-500 m-0 mb-8 leading-relaxed">Calculate your matches to see who you vibe with.</p>
 
           {(() => {

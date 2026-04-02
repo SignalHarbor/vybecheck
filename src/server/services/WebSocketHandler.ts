@@ -81,6 +81,12 @@ export class WebSocketHandler {
       case 'session:join':
         this.handleSessionJoin(ws, message.data);
         break;
+      case 'session:start':
+        this.handleSessionStart(ws);
+        break;
+      case 'session:release-results':
+        this.handleSessionReleaseResults(ws);
+        break;
       case 'question:add':
         this.handleQuestionAdd(ws, message.data);
         break;
@@ -338,8 +344,80 @@ export class WebSocketHandler {
         type: 'response:recorded',
         data: { participantId: connectionInfo.participantId, questionId: data.questionId }
       }, ws);
+
+      // Send updated progress to the owner so they see real-time completion
+      const owner = Array.from(session.participants.values()).find(p => p.isOwner);
+      if (owner && owner.connection && owner.id !== connectionInfo.participantId && owner.isActive) {
+        this.sendQuizState(owner.connection, session, owner.id);
+      }
     } catch (error: any) {
       this.sendError(ws, error.message);
+    }
+  }
+
+  private handleSessionStart(ws: WebSocket) {
+    const connectionInfo = this.connections.get(ws);
+    if (!connectionInfo) {
+      this.sendError(ws, 'Not in a session');
+      return;
+    }
+
+    const session = this.sessions.get(connectionInfo.sessionId);
+    if (!session) {
+      this.sendError(ws, 'Session not found');
+      return;
+    }
+
+    if (!session.canAddQuestion(connectionInfo.participantId)) {
+      this.sendError(ws, 'Only owner can start the session');
+      return;
+    }
+
+    try {
+      session.startSession();
+      this.broadcastToSession(session, { type: 'session:started' });
+      // Send updated quiz state to all participants
+      for (const participant of session.participants.values()) {
+        if (participant.connection && participant.isActive) {
+          this.sendQuizState(participant.connection, session, participant.id);
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to start session';
+      this.sendError(ws, message);
+    }
+  }
+
+  private handleSessionReleaseResults(ws: WebSocket) {
+    const connectionInfo = this.connections.get(ws);
+    if (!connectionInfo) {
+      this.sendError(ws, 'Not in a session');
+      return;
+    }
+
+    const session = this.sessions.get(connectionInfo.sessionId);
+    if (!session) {
+      this.sendError(ws, 'Session not found');
+      return;
+    }
+
+    if (!session.canAddQuestion(connectionInfo.participantId)) {
+      this.sendError(ws, 'Only owner can release results');
+      return;
+    }
+
+    try {
+      session.releaseResults();
+      this.broadcastToSession(session, { type: 'session:results-released' });
+      // Send updated quiz state to all participants
+      for (const participant of session.participants.values()) {
+        if (participant.connection && participant.isActive) {
+          this.sendQuizState(participant.connection, session, participant.id);
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to release results';
+      this.sendError(ws, message);
     }
   }
 
@@ -353,6 +431,13 @@ export class WebSocketHandler {
     const session = this.sessions.get(connectionInfo.sessionId);
     if (!session) {
       this.sendError(ws, 'Session not found');
+      return;
+    }
+
+    // Gate results on owner releasing them (owner can always see)
+    const isOwner = session.canAddQuestion(connectionInfo.participantId);
+    if (!session.resultsReleased && !isOwner) {
+      this.sendError(ws, 'Results have not been released yet. Please wait for the host.');
       return;
     }
 
@@ -488,6 +573,8 @@ export class WebSocketHandler {
   }
 
   private sendQuizState(ws: WebSocket, session: QuizSession, participantId: string) {
+    const isOwner = session.canAddQuestion(participantId);
+
     const quizState: QuizState = {
       sessionId: session.sessionId,
       ownerId: session.ownerId,
@@ -499,6 +586,9 @@ export class WebSocketHandler {
       myResponses: session.getResponseValuesForParticipant(participantId),
       myCompletionStatus: session.hasParticipantCompletedQuiz(participantId),
       questionLimit: this.quotaManager.getQuestionLimit(participantId, session.sessionId),
+      resultsReleased: session.resultsReleased,
+      // Only send participant progress to the owner
+      participantProgress: isOwner ? session.getParticipantProgress() : undefined,
     };
 
     this.send(ws, { type: 'quiz:state', data: quizState });

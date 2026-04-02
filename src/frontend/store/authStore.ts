@@ -63,15 +63,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signInWithTwitter: () => {
     set({ isSigningIn: true });
     // TODO: Implement actual Twitter OAuth flow
-    // For now, simulate sign-in after 2 seconds
+    // For now, simulate sign-in with a unique username
     setTimeout(() => {
+      const suffix = Date.now().toString(36).slice(-4);
+      const username = `@user_${suffix}`;
       const newState = {
         isSigningIn: false,
         isSignedIn: true,
-        twitterUsername: '@demo_user',
+        twitterUsername: username,
         featureUnlocks: [] as UnlockableFeature[],
       };
-      saveAuth({ isSignedIn: true, twitterUsername: '@demo_user' });
+      saveAuth({ isSignedIn: true, twitterUsername: username });
       set(newState);
     }, 2000);
   },

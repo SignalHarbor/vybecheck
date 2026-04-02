@@ -86,8 +86,24 @@ function App() {
         if (!isSignedIn) {
           setSignedIn(`Guest_${message.data.participantId.slice(0, 6)}`);
         }
-        // Navigate to lab if owner, quiz if participant
-        setActivePage(message.data.isOwner ? 'lab' : 'quiz');
+        // Navigate to lobby (waiting room) for participants
+        setActivePage(message.data.isOwner ? 'lab' : 'lobby');
+        break;
+
+      case 'session:started':
+        updateQuizState((prev) => prev ? { ...prev, status: 'active' } : null);
+        if (isOwner) {
+          showNotification('Session started!');
+          setActivePage('lobby'); // Owner monitors progress from lobby
+        } else {
+          showNotification('Session started! Answer the questions now.');
+          setActivePage('quiz');
+        }
+        break;
+
+      case 'session:results-released':
+        updateQuizState((prev) => prev ? { ...prev, resultsReleased: true } : null);
+        showNotification('Results are now available!');
         break;
 
       case 'quiz:state':

@@ -15,7 +15,7 @@ const DEFAULT_QUESTION_LIMIT = 3;
 export function LabPage() {
   const { draftQuestions, addDraft, removeDraft, clearDrafts, setOwnerResponse } = useDraftStore();
   const { send } = useWebSocketStore();
-  const { showNotification, showError } = useUIStore();
+  const { showNotification, showError, setActivePage } = useUIStore();
   const { sessionId, quizState, questionLimitState, isOwner } = useQuizStore();
   const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit } = useAuthStore();
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -157,6 +157,13 @@ export function LabPage() {
   };
 
   const confirmUpgradeAndPublish = () => {
+    // If user can't afford, redirect to Vybes page to purchase
+    if (!canAffordUpgrade) {
+      setShowUpgradeDialog(false);
+      setActivePage('vybes');
+      return;
+    }
+
     setShowUpgradeDialog(false);
     const questionsToPublish = [...draftQuestions];
 
@@ -473,7 +480,7 @@ export function LabPage() {
         message={`You have ${draftQuestions.length} questions but the free limit is ${DEFAULT_QUESTION_LIMIT}. Upgrade to ${questionLimit > DEFAULT_QUESTION_LIMIT ? questionLimit : 10} questions for ${QUESTION_LIMIT_UPGRADE_COST} Vybes?${vybesBalance < QUESTION_LIMIT_UPGRADE_COST ? ` (You only have ${vybesBalance} Vybes — not enough!)` : ` (You have ${vybesBalance} Vybes)`}`}
         onConfirm={confirmUpgradeAndPublish}
         onCancel={() => setShowUpgradeDialog(false)}
-        confirmText={vybesBalance >= QUESTION_LIMIT_UPGRADE_COST ? `Upgrade & Publish (${QUESTION_LIMIT_UPGRADE_COST} ✨)` : 'Not Enough Vybes'}
+        confirmText={vybesBalance >= QUESTION_LIMIT_UPGRADE_COST ? `Upgrade & Publish (${QUESTION_LIMIT_UPGRADE_COST} ✨)` : 'Get Vybes →'}
       />
 
     </div>

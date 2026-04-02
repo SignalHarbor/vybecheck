@@ -3,6 +3,7 @@
 import type { Question } from '../server/models/Question';
 import type { Participant } from '../server/models/Participant';
 import type { Response } from '../server/models/Response';
+import type { ParticipantProgress } from '../server/models/QuizSession';
 
 // Match tiers for tiered access
 export type MatchTier = 'PREVIEW' | 'TOP3' | 'ALL';
@@ -12,6 +13,8 @@ export type ClientMessage =
   | { type: 'session:create'; data: { username?: string } }
   | { type: 'session:join'; data: { sessionId: string; username?: string } }
   | { type: 'session:leave' }
+  | { type: 'session:start' }
+  | { type: 'session:release-results' }
   | { type: 'question:add'; data: { prompt: string; options: [string, string]; timer?: number; ownerResponse?: string } }
   | { type: 'question:unlock-limit' }
   | { type: 'response:submit'; data: { questionId: string; optionChosen: string } }
@@ -24,6 +27,8 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'session:created'; data: { sessionId: string; participantId: string; vybesBalance: number } }
   | { type: 'session:joined'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
+  | { type: 'session:started' }
+  | { type: 'session:results-released' }
   | { type: 'quiz:state'; data: QuizState }
   | { type: 'question:added'; data: { question: Question } }
   | { type: 'question:limit-reached'; data: { current: number; max: number; upgradeCost: number } }
@@ -51,6 +56,8 @@ export interface QuizState {
   myResponses: string[]; // Response values in question order
   myCompletionStatus: boolean; // Has participant completed all questions
   questionLimit: number; // Server-authoritative question limit for this session
+  resultsReleased: boolean;
+  participantProgress?: ParticipantProgress[]; // Owner-only: completion % per participant
 }
 
 export interface ParticipantInfo {
@@ -112,5 +119,6 @@ export interface PurchaseResult {
 
 export type {
   Participant,
-  Question
+  Question,
+  ParticipantProgress
 }
