@@ -50,6 +50,32 @@ export class QuizSession {
   }
 
   /**
+   * Reconstruct a QuizSession from database rows (used during hydration).
+   */
+  static fromDB(data: {
+    sessionId: string;
+    ownerId: string;
+    status: 'live' | 'active' | 'expired';
+    resultsReleased: boolean;
+    createdAt: Date;
+    expiresAt: Date;
+  }): QuizSession {
+    // Create a placeholder session then overwrite fields
+    const session = Object.create(QuizSession.prototype) as QuizSession;
+    (session as any).sessionId = data.sessionId;
+    (session as any).ownerId = data.ownerId;
+    session.status = data.status;
+    session.questions = [];
+    session.quiz = [];
+    session.responses = [];
+    session.participants = new Map();
+    session.resultsReleased = data.resultsReleased;
+    (session as any).createdAt = data.createdAt;
+    (session as any).expiresAt = data.expiresAt;
+    return session;
+  }
+
+  /**
    * Generate a short, shareable session ID (6 chars)
    */
   private generateSessionId(): string {

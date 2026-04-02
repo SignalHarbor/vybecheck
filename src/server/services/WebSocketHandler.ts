@@ -10,6 +10,12 @@ import { ParticipantUnlockManager } from '../models/ParticipantUnlock';
 import { QuotaManager } from '../models/QuotaManager';
 import { generateParticipantId, generateQuestionId, generateResponseId } from '../utils/idGenerator';
 import type { ClientMessage, ServerMessage, QuizState, ParticipantInfo, MatchResult, MatchTier, UnlockableFeature } from '../../shared/types';
+import type { DatabaseInstance } from '../db/database';
+import { SessionRepository } from '../db/repositories/SessionRepository';
+import { ResponseRepository } from '../db/repositories/ResponseRepository';
+import { LedgerRepository } from '../db/repositories/LedgerRepository';
+import { UnlockRepository } from '../db/repositories/UnlockRepository';
+import { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
 
 // Pricing constants
 const FEATURE_COSTS: Record<UnlockableFeature, number> = {
@@ -32,16 +38,91 @@ export class WebSocketHandler {
   private quotaManager: QuotaManager;
   private billingService: BillingService;
 
-  constructor(options?: { vybeLedger?: VybeLedger }) {
-    // Use provided VybeLedger or create new one
-    this.vybeLedger = options?.vybeLedger || new VybeLedger();
-    this.participantUnlock = new ParticipantUnlockManager();
+  // DB repositories (optional — undefined when no DB)
+  private db?: DatabaseInstance;
+  private sessionRepo?: SessionRepository;
+  private responseRepo?: ResponseRepository;
+
+  constructor(options?: { vybeLedger?: VybeLedger; db?: DatabaseInstance }) {
+    // Initialize DB repositories if database provided
+    const db = options?.db;
+    this.db = db;
+    if (db) {
+      this.sessionRepo = new SessionRepository(db);
+      this.responseRepo = new ResponseRepository(db);
+    }
+
+    const ledgerRepo = db ? new LedgerRepository(db) : undefined;
+    const unlockRepo = db ? new UnlockRepository(db) : undefined;
+
+    // Use provided VybeLedger or create new one (with optional DB write-through)
+    this.vybeLedger = options?.vybeLedger || new VybeLedger(ledgerRepo);
+    this.participantUnlock = new ParticipantUnlockManager(unlockRepo);
     this.quotaManager = new QuotaManager(this.participantUnlock);
     this.billingService = new BillingService({
       vybeLedger: this.vybeLedger,
       participantUnlock: this.participantUnlock,
       quotaManager: this.quotaManager,
     });
+
+    // Hydrate active sessions from DB on startup
+    if (this.sessionRepo) {
+      this.hydrateFromDB();
+    }
+  }
+
+  /**
+   * Get the StripeSessionRepository (for sharing with StripeService)
+   */
+  getStripeSessionRepo(): StripeSessionRepository | undefined {
+    return this.db ? new StripeSessionRepository(this.db) : undefined;
+  }
+
+  /**
+   * Hydrate in-memory sessions from the database on startup.
+   */
+  private hydrateFromDB(): void {
+    if (!this.sessionRepo || !this.responseRepo) return;
+
+    const activeSessionRows = this.sessionRepo.findActive();
+    for (const row of activeSessionRows) {
+      // Reconstruct QuizSession from DB rows
+      const session = QuizSession.fromDB({
+        sessionId: row.id,
+        ownerId: row.owner_id,
+        status: row.status,
+        resultsReleased: row.results_released === 1,
+        createdAt: new Date(row.created_at),
+        expiresAt: new Date(row.expires_at),
+      });
+
+      // Load participants
+      const participantRows = this.sessionRepo.getParticipantsBySession(row.id);
+      for (const pRow of participantRows) {
+        const participant = SessionRepository.rowToParticipant(pRow);
+        // Mark all as inactive on startup (no WebSocket yet)
+        participant.isActive = false;
+        session.addParticipant(participant);
+      }
+
+      // Load questions
+      const questionRows = this.sessionRepo.getQuestionsBySession(row.id);
+      for (const qRow of questionRows) {
+        const question = SessionRepository.rowToQuestion(qRow);
+        session.addQuestion(question);
+      }
+
+      // Load responses
+      const responseRows = this.responseRepo.findBySession(row.id);
+      for (const rRow of responseRows) {
+        const response = ResponseRepository.rowToResponse(rRow);
+        session.responses.push(response); // Direct push to avoid re-validation
+      }
+
+      this.sessions.set(session.sessionId, session);
+    }
+
+    console.log(`Hydrated ${activeSessionRows.length} sessions from database`);
   }
 
   /**
@@ -131,6 +212,27 @@ export class WebSocketHandler {
     this.sessions.set(session.sessionId, session);
     this.connections.set(ws, { sessionId: session.sessionId, participantId });
 
+    // Persist to DB
+    if (this.sessionRepo) {
+      this.sessionRepo.createSession({
+        id: session.sessionId,
+        ownerId: session.ownerId,
+        status: session.status,
+        resultsReleased: session.resultsReleased,
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+      });
+      this.sessionRepo.addParticipant({
+        id: owner.id,
+        sessionId: session.sessionId,
+        username: owner.username,
+        isOwner: owner.isOwner,
+        isActive: owner.isActive,
+        joinedAt: owner.joinedAt,
+        lastActiveAt: owner.lastActiveAt,
+      });
+    }
+
     // Grant initial Vybes
     this.grantInitialVybes(participantId);
     const vybesBalance = this.billingService.getBalance(participantId);
@@ -164,6 +266,19 @@ export class WebSocketHandler {
 
     session.addParticipant(participant);
     this.connections.set(ws, { sessionId: session.sessionId, participantId });
+
+    // Persist participant to DB
+    if (this.sessionRepo) {
+      this.sessionRepo.addParticipant({
+        id: participant.id,
+        sessionId: session.sessionId,
+        username: participant.username,
+        isOwner: participant.isOwner,
+        isActive: participant.isActive,
+        joinedAt: participant.joinedAt,
+        lastActiveAt: participant.lastActiveAt,
+      });
+    }
 
     // Grant initial Vybes
     this.grantInitialVybes(participantId);
@@ -232,6 +347,19 @@ export class WebSocketHandler {
 
     try {
       session.addQuestion(question);
+
+      // Persist question to DB
+      if (this.sessionRepo) {
+        this.sessionRepo.addQuestion({
+          id: question.id,
+          sessionId: session.sessionId,
+          prompt: question.prompt,
+          options: question.options,
+          timer: question.timer,
+          sortOrder: session.quiz.length - 1,
+          addedAt: question.addedAt,
+        });
+      }
       
       // If owner provided a response, record it
       if (data.ownerResponse) {
@@ -244,6 +372,18 @@ export class WebSocketHandler {
           answeredAt: new Date()
         };
         session.recordResponse(ownerResponse);
+
+        // Persist owner response to DB
+        if (this.responseRepo) {
+          this.responseRepo.create({
+            id: ownerResponse.id,
+            participantId: ownerResponse.participantId,
+            questionId: ownerResponse.questionId,
+            sessionId: ownerResponse.sessionId,
+            optionChosen: ownerResponse.optionChosen,
+            answeredAt: ownerResponse.answeredAt,
+          });
+        }
       }
       
       this.broadcastToSession(session, {
@@ -339,6 +479,19 @@ export class WebSocketHandler {
 
     try {
       session.recordResponse(response);
+
+      // Persist response to DB
+      if (this.responseRepo) {
+        this.responseRepo.create({
+          id: response.id,
+          participantId: response.participantId,
+          questionId: response.questionId,
+          sessionId: response.sessionId,
+          optionChosen: response.optionChosen,
+          answeredAt: response.answeredAt,
+        });
+      }
+
       this.sendQuizState(ws, session, connectionInfo.participantId);
       this.broadcastToSession(session, {
         type: 'response:recorded',
@@ -375,6 +528,12 @@ export class WebSocketHandler {
 
     try {
       session.startSession();
+
+      // Persist status change to DB
+      if (this.sessionRepo) {
+        this.sessionRepo.updateStatus(session.sessionId, session.status);
+      }
+
       this.broadcastToSession(session, { type: 'session:started' });
       // Send updated quiz state to all participants
       for (const participant of session.participants.values()) {
@@ -408,6 +567,12 @@ export class WebSocketHandler {
 
     try {
       session.releaseResults();
+
+      // Persist results release to DB
+      if (this.sessionRepo) {
+        this.sessionRepo.updateResultsReleased(session.sessionId, true);
+      }
+
       this.broadcastToSession(session, { type: 'session:results-released' });
       // Send updated quiz state to all participants
       for (const participant of session.participants.values()) {
@@ -561,6 +726,12 @@ export class WebSocketHandler {
         const participant = session.participants.get(connectionInfo.participantId);
         if (participant) {
           participant.isActive = false;
+
+          // Persist disconnect to DB
+          if (this.sessionRepo) {
+            this.sessionRepo.updateParticipantActive(connectionInfo.participantId, false);
+          }
+
           this.broadcastToSession(session, {
             type: 'participant:left',
             data: { participantId: connectionInfo.participantId }

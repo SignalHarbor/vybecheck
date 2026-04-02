@@ -1,14 +1,40 @@
 import type { LedgerEntry, TransactionReason } from '../../shared/types';
+import type { LedgerRepository } from '../db/repositories/LedgerRepository';
 
 /**
  * VybeLedger - Manages Vybes transactions and balance calculation
  *
  * Stores all transactions in a ledger format (append-only).
  * Balance is calculated by summing all transactions for a participant.
+ * Optionally writes through to a LedgerRepository for persistence.
  */
 export class VybeLedger {
   private ledger: LedgerEntry[] = [];
   private nextId = 1;
+  private repo?: LedgerRepository;
+
+  constructor(repo?: LedgerRepository) {
+    this.repo = repo;
+    // Hydrate from DB if repository provided
+    if (repo) {
+      const rows = repo.getAll();
+      for (const row of rows) {
+        const entry = {
+          id: row.id,
+          participantId: row.participant_id,
+          amount: row.amount,
+          reason: row.reason as TransactionReason,
+          createdAt: new Date(row.created_at),
+        };
+        this.ledger.push(entry);
+        // Keep nextId ahead of existing entries
+        const idNum = parseInt(row.id.replace('txn-', ''));
+        if (!isNaN(idNum) && idNum >= this.nextId) {
+          this.nextId = idNum + 1;
+        }
+      }
+    }
+  }
 
   /**
    * Add a transaction (positive or negative)
@@ -31,6 +57,18 @@ export class VybeLedger {
     };
 
     this.ledger.push(entry);
+
+    // Write-through to DB
+    if (this.repo) {
+      this.repo.addTransaction({
+        id: entry.id,
+        participantId: entry.participantId,
+        amount: entry.amount,
+        reason: entry.reason,
+        createdAt: entry.createdAt,
+      });
+    }
+
     return entry;
   }
 

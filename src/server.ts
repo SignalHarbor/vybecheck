@@ -7,26 +7,32 @@ import { StripeService } from './server/services/StripeService';
 import { createPaymentRoutes, createWebhookHandler } from './server/routes/payment';
 import { createVybesRoutes } from './server/routes/vybes';
 import { createAIRoutes } from './server/routes/ai';
+import { initDatabase } from './server/db/database';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize database
+const db = initDatabase();
+console.log('Database initialized');
+
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
-const wsHandler = new WebSocketHandler();
+const wsHandler = new WebSocketHandler({ db });
 
 const PORT = process.env.PORT || 3000;
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
-// Initialize Stripe service (shares VybeLedger with WebSocket handler)
+// Initialize Stripe service (shares VybeLedger and StripeSessionRepo with WebSocket handler)
 const stripeService = new StripeService({
   secretKey: process.env.STRIPE_SECRET_KEY || '',
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
   vybeLedger: wsHandler.getVybeLedger(),
   appUrl: APP_URL,
+  stripeSessionRepo: wsHandler.getStripeSessionRepo(),
 });
 
 // Stripe webhook needs raw body - must be before express.json()

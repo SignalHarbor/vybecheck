@@ -17,6 +17,11 @@ dist-ssr
 .env.local
 .env.production
 
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
 # Fly.io
 .fly
 

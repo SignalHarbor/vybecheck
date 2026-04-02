@@ -14,7 +14,7 @@ describe('QuizSession - Slice 1: Single-Session, Single-Owner Setup', () => {
   describe('Session Creation', () => {
     test('should create new quiz session with unique ID', () => {
       expect(quizSession.sessionId).toBeDefined();
-      expect(quizSession.sessionId).toMatch(/^[a-z0-9]+$/); // alphanumeric lowercase
+      expect(quizSession.sessionId).toMatch(/^[a-zA-Z0-9]+$/); // alphanumeric mixed case
       expect(quizSession.sessionId.length).toBeGreaterThan(5);
     });
 

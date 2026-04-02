@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import type { VybeLedger } from '../models/VybeLedger';
+import type { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
 
 // Pack configuration - replace with your actual Stripe Price IDs
 export interface VybePack {
@@ -54,8 +55,10 @@ export class StripeService {
   private vybeLedger: VybeLedger;
   private webhookSecret: string;
   private appUrl: string;
+  private stripeSessionRepo?: StripeSessionRepository;
 
   // Track processed session IDs to prevent duplicate credits (idempotency)
+  // Falls back to in-memory Set when no DB is available
   private processedSessions: Set<string> = new Set();
 
   constructor(params: {
@@ -63,11 +66,13 @@ export class StripeService {
     webhookSecret: string;
     vybeLedger: VybeLedger;
     appUrl: string;
+    stripeSessionRepo?: StripeSessionRepository;
   }) {
     this.stripe = new Stripe(params.secretKey);
     this.webhookSecret = params.webhookSecret;
     this.vybeLedger = params.vybeLedger;
     this.appUrl = params.appUrl;
+    this.stripeSessionRepo = params.stripeSessionRepo;
   }
 
   /**
@@ -169,8 +174,11 @@ export class StripeService {
       return { success: false, error: 'Missing metadata' };
     }
 
-    // Idempotency check - prevent duplicate credits
-    if (this.processedSessions.has(session.id)) {
+    // Idempotency check - prevent duplicate credits (DB + in-memory)
+    const alreadyProcessed = this.stripeSessionRepo
+      ? this.stripeSessionRepo.isProcessed(session.id)
+      : this.processedSessions.has(session.id);
+    if (alreadyProcessed) {
       console.log('Session already processed:', session.id);
       return { success: true, participantId, vybesAdded: 0 };
     }
@@ -189,7 +197,10 @@ export class StripeService {
         reason: 'PURCHASE_VYBES',
       });
 
-      // Mark session as processed
+      // Mark session as processed (DB + in-memory)
+      if (this.stripeSessionRepo) {
+        this.stripeSessionRepo.markProcessed(session.id);
+      }
       this.processedSessions.add(session.id);
 
       console.log(`Credited ${vybesAmount} Vybes to participant ${participantId}`);
@@ -224,13 +235,19 @@ export class StripeService {
 
         // Credit Vybes if not already processed (idempotent)
         let credited = false;
-        if (participantId && vybesAmount && !this.processedSessions.has(sessionId)) {
+        const alreadyVerified = this.stripeSessionRepo
+          ? this.stripeSessionRepo.isProcessed(sessionId)
+          : this.processedSessions.has(sessionId);
+        if (participantId && vybesAmount && !alreadyVerified) {
           try {
             this.vybeLedger.addVybes({
               participantId,
               amount: vybesAmount,
               reason: 'PURCHASE_VYBES',
             });
+            if (this.stripeSessionRepo) {
+              this.stripeSessionRepo.markProcessed(sessionId);
+            }
             this.processedSessions.add(sessionId);
             credited = true;
             console.log(`[verifySession] Credited ${vybesAmount} Vybes to ${participantId}`);

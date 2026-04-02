@@ -1,14 +1,39 @@
 import type { FeatureUnlock, UnlockableFeature } from '../../shared/types';
+import type { UnlockRepository } from '../db/repositories/UnlockRepository';
 
 /**
  * ParticipantUnlockManager - Manages feature unlocks per participant per resource
  *
  * Tracks which features have been unlocked by participants.
  * Implements tier hierarchy: MATCH_ALL > MATCH_TOP3 > MATCH_PREVIEW
+ * Optionally writes through to an UnlockRepository for persistence.
  */
 export class ParticipantUnlockManager {
   private nextId = 1;
   private unlocks: FeatureUnlock[] = [];
+  private repo?: UnlockRepository;
+
+  constructor(repo?: UnlockRepository) {
+    this.repo = repo;
+    // Hydrate from DB if repository provided
+    if (repo) {
+      const rows = repo.getAll();
+      for (const row of rows) {
+        const entry: FeatureUnlock = {
+          id: row.id,
+          participantId: row.participant_id,
+          resourceId: row.resource_id,
+          feature: row.feature as UnlockableFeature,
+          createdAt: new Date(row.created_at),
+        };
+        this.unlocks.push(entry);
+        const idNum = parseInt(row.id.replace('unlock-', ''));
+        if (!isNaN(idNum) && idNum >= this.nextId) {
+          this.nextId = idNum + 1;
+        }
+      }
+    }
+  }
 
   // Feature tier hierarchy
   private readonly TIER_HIERARCHY: Record<UnlockableFeature, UnlockableFeature[]> = {
@@ -62,6 +87,18 @@ export class ParticipantUnlockManager {
     };
 
     this.unlocks.push(unlock);
+
+    // Write-through to DB
+    if (this.repo) {
+      this.repo.create({
+        id: unlock.id,
+        participantId: unlock.participantId,
+        resourceId: unlock.resourceId,
+        feature: unlock.feature,
+        createdAt: unlock.createdAt,
+      });
+    }
+
     return unlock;
   }
 
