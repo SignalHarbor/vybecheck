@@ -6,18 +6,20 @@ interface BottomNavProps {
   isOwner: boolean;
   hasSession: boolean;
   draftCount: number;
+  isAuthenticated: boolean;
 }
 
-export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount }: BottomNavProps) {
+export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated }: BottomNavProps) {
   if (activePage === 'start') return null;
 
   const navItems = [
-    {
+    // Lab and Vybes only for authenticated users
+    ...(isAuthenticated ? [{
       id: 'lab' as PageType,
       label: 'Lab',
       icon: '🧪',
       badge: draftCount > 0 ? draftCount : undefined,
-    },
+    }] : []),
     {
       id: 'quiz' as PageType,
       label: 'Quiz',
@@ -28,11 +30,11 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
       label: 'Lobby',
       icon: '👥',
     },
-    {
+    ...(isAuthenticated ? [{
       id: 'vybes' as PageType,
       label: 'Vybes',
       icon: '✨',
-    },
+    }] : []),
   ];
 
   return (

@@ -1,6 +1,6 @@
 /**
- * Generate a unique participant ID
- * Uses timestamp + random string for uniqueness
+ * Generate a unique participant ID.
+ * Uses timestamp + random string for uniqueness.
  */
 export function generateParticipantId(): string {
   const timestamp = Date.now().toString(36);
@@ -9,29 +9,28 @@ export function generateParticipantId(): string {
 }
 
 /**
- * Generate a unique response ID
- * Uses incrementing counter for simplicity
+ * Generate a unique response ID.
+ * Uses timestamp + random string for global uniqueness across restarts.
  */
-let responseCounter = 0;
 export function generateResponseId(): string {
-  responseCounter++;
-  return responseCounter.toString().padStart(2, '0');
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 8);
+  return `r_${timestamp}${randomPart}`;
 }
 
 /**
- * Generate a unique question ID
- * Format: q1, q2, q3, etc.
+ * Generate a unique question ID.
+ * Uses timestamp + random string for global uniqueness across restarts.
  */
-let questionCounter = 0;
 export function generateQuestionId(): string {
-  questionCounter++;
-  return `q${questionCounter}`;
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 8);
+  return `q_${timestamp}${randomPart}`;
 }
 
 /**
- * Reset all counters (useful for testing)
+ * Reset all counters (no-op, kept for test compatibility).
  */
 export function resetCounters(): void {
-  responseCounter = 0;
-  questionCounter = 0;
+  // No-op: IDs are now timestamp-based and don't use counters.
 }

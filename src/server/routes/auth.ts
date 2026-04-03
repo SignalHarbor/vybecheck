@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { AuthService } from '../services/AuthService';
+import logger from '../utils/logger';
 
 export function createAuthRoutes(authService: AuthService): Router {
   const router = Router();
@@ -35,9 +36,8 @@ export function createAuthRoutes(authService: AuthService): Router {
 
       res.json(result);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Authentication failed';
-      console.error('Auth error:', message);
-      res.status(401).json({ error: message });
+      logger.error({ err }, 'Twitter auth token exchange failed');
+      res.status(401).json({ error: 'Authentication failed' });
     }
   });
 

@@ -112,7 +112,7 @@ function App() {
         setVybesBalance(message.data.vybesBalance);
         // Mark as signed in (as guest participant if not already signed in)
         if (!isSignedIn) {
-          setSignedIn(`Guest`);
+          setSignedIn(`guest_${message.data.participantId.slice(0, 6)}`);
         }
         // Navigate to lobby (waiting room) for participants
         setActivePage(message.data.isOwner ? 'lab' : 'lobby');
@@ -284,9 +284,9 @@ function App() {
     );
   }
 
-  // Signed-in users shouldn't be on 'start' — default to 'lab'
+  // Signed-in users shouldn't be on 'start' — default based on auth status
   if (activePage === 'start') {
-    setActivePage('lab');
+    setActivePage(authToken ? 'lab' : 'quiz');
   }
 
   return (
@@ -322,6 +322,7 @@ function App() {
         isOwner={isOwner}
         hasSession={Boolean(sessionId)}
         draftCount={draftQuestions.length}
+        isAuthenticated={authToken !== null}
       />
     </div>
   );

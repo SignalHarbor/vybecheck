@@ -10,6 +10,7 @@ import { createAIRoutes } from './server/routes/ai';
 import { createAuthRoutes } from './server/routes/auth';
 import { AuthService } from './server/services/AuthService';
 import { initDatabase } from './server/db/database';
+import logger from './server/utils/logger';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,7 +19,7 @@ const __dirname = path.dirname(__filename);
 
 // Initialize database
 const db = initDatabase();
-console.log('Database initialized');
+logger.info('Database initialized');
 
 const app = express();
 const server = createServer(app);
@@ -75,10 +76,8 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`WebSocket server ready`);
-  console.log(`App URL: ${APP_URL}`);
+  logger.info({ port: PORT, appUrl: APP_URL }, 'Server started');
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.warn('Warning: STRIPE_SECRET_KEY not set');
+    logger.warn('STRIPE_SECRET_KEY not set');
   }
 });

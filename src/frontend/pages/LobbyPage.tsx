@@ -8,7 +8,8 @@ import { useDraftStore } from '../store/draftStore';
 export function LobbyPage() {
   const { sessionId, participantId, quizState, isOwner } = useQuizStore();
   const { send } = useWebSocketStore();
-  const { twitterUsername } = useAuthStore();
+  const { twitterUsername, authToken, signInWithTwitter } = useAuthStore();
+  const isAuthenticated = authToken !== null;
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
   const [joinSessionId, setJoinSessionId] = useState('');
@@ -49,28 +50,31 @@ export function LobbyPage() {
 
     return (
       <div className="w-full min-h-full">
-        <div className="bg-white p-8 rounded-[20px] text-center shadow-card mb-5">
-          <div className="text-5xl mb-4">📡</div>
-          <h2 className="m-0 mb-2 text-2xl font-bold text-gray-800">No Active Session</h2>
-          <p className="text-gray-500 text-sm mb-6">
-            Create a new session to start a quiz, or join an existing one.
-          </p>
-          <button
-            onClick={handleCreateSession}
-            disabled={isCreating}
-            className="w-full mb-3 py-4 px-6 border-none rounded-xl cursor-pointer text-[17px] font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-gradient-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isCreating ? 'Creating...' : draftQuestions.length > 0
-              ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''} will publish)`
-              : 'Create New Session'
-            }
-          </button>
-          {draftQuestions.length > 0 && (
-            <p className="text-vybe-blue text-xs mb-4">
-              Your {draftQuestions.length} draft question{draftQuestions.length !== 1 ? 's' : ''} will be published automatically
+        {/* Create session - only for authenticated users */}
+        {isAuthenticated && (
+          <div className="bg-white p-8 rounded-[20px] text-center shadow-card mb-5">
+            <div className="text-5xl mb-4">📡</div>
+            <h2 className="m-0 mb-2 text-2xl font-bold text-gray-800">No Active Session</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Create a new session to start a quiz, or join an existing one.
             </p>
-          )}
-        </div>
+            <button
+              onClick={handleCreateSession}
+              disabled={isCreating}
+              className="w-full mb-3 py-4 px-6 border-none rounded-xl cursor-pointer text-[17px] font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-gradient-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCreating ? 'Creating...' : draftQuestions.length > 0
+                ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''} will publish)`
+                : 'Create New Session'
+              }
+            </button>
+            {draftQuestions.length > 0 && (
+              <p className="text-vybe-blue text-xs mb-4">
+                Your {draftQuestions.length} draft question{draftQuestions.length !== 1 ? 's' : ''} will be published automatically
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="bg-white p-6 rounded-[20px] shadow-card">
           <h3 className="m-0 mb-4 text-base font-semibold text-gray-800">Join Existing Session</h3>
@@ -241,6 +245,22 @@ export function LobbyPage() {
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Guest sign-in prompt */}
+      {!isAuthenticated && (
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-300 rounded-[20px] p-5 mb-4 flex flex-col items-center text-center gap-3">
+          <p className="text-sm font-semibold text-amber-800 m-0">Sign in to participate in the quiz and get matched with others!</p>
+          <button
+            onClick={() => signInWithTwitter()}
+            className="flex items-center justify-center gap-2 py-3 px-6 border-none rounded-xl cursor-pointer text-[15px] font-semibold bg-twitter text-white shadow-twitter active:scale-[0.97]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            Sign in with Twitter
+          </button>
         </div>
       )}
 

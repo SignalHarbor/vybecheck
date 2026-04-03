@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { TranscriptionService } from '../services/TranscriptionService';
 import { QuestionGeneratorService } from '../services/QuestionGeneratorService';
+import logger from '../utils/logger';
 
 const TEST_AUDIO_DIR = path.resolve('test-audio');
 
@@ -85,20 +86,19 @@ export function createAIRoutes(): Router {
       const audioBuffer = fs.readFileSync(filePath);
 
       // Step 1: Transcribe
-      console.log(`Transcribing test file ${safeName} (${(audioBuffer.length / 1024).toFixed(1)}KB)...`);
+      logger.info({ filename: safeName, sizeKB: (audioBuffer.length / 1024).toFixed(1) }, 'Transcribing test file');
       const { text: transcript } = await transcriptionService.transcribe(audioBuffer, safeName);
-      console.log(`Transcription complete (${transcript.length} chars)`);
+      logger.info({ chars: transcript.length }, 'Transcription complete');
 
       // Step 2: Generate questions
-      console.log(`Generating ${count} questions...`);
+      logger.info({ count }, 'Generating questions');
       const questions = await questionGeneratorService.generate(transcript, count);
-      console.log(`Generated ${questions.length} questions`);
+      logger.info({ generated: questions.length }, 'Questions generated');
 
       res.json({ questions, transcript });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('AI generation error:', message);
-      res.status(500).json({ error: message });
+      logger.error({ err }, 'AI generation from test file failed');
+      res.status(500).json({ error: 'Failed to generate questions' });
     }
   });
 
@@ -127,23 +127,22 @@ export function createAIRoutes(): Router {
         const count = parseInt(req.body.count, 10) || 5;
 
         // Step 1: Transcribe
-        console.log(`Transcribing ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)}KB)...`);
+        logger.info({ filename: req.file.originalname, sizeKB: (req.file.size / 1024).toFixed(1) }, 'Transcribing uploaded file');
         const { text: transcript } = await transcriptionService.transcribe(
           req.file.buffer,
           req.file.originalname,
         );
-        console.log(`Transcription complete (${transcript.length} chars)`);
+        logger.info({ chars: transcript.length }, 'Transcription complete');
 
         // Step 2: Generate questions
-        console.log(`Generating ${count} questions...`);
+        logger.info({ count }, 'Generating questions');
         const questions = await questionGeneratorService.generate(transcript, count);
-        console.log(`Generated ${questions.length} questions`);
+        logger.info({ generated: questions.length }, 'Questions generated');
 
         res.json({ questions, transcript });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        console.error('AI generation error:', message);
-        res.status(500).json({ error: message });
+        logger.error({ err }, 'AI generation from upload failed');
+        res.status(500).json({ error: 'Failed to generate questions' });
       }
     },
   );

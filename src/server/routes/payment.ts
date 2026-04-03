@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { StripeService } from '../services/StripeService';
+import logger from '../utils/logger';
 
 export function createPaymentRoutes(stripeService: StripeService): Router {
   const router = Router();
@@ -29,10 +30,9 @@ export function createPaymentRoutes(stripeService: StripeService): Router {
       });
 
       res.json({ url: result.url, sessionId: result.sessionId });
-    } catch (err: any) {
-      console.error('Checkout error:', err.message);
-      console.error('Full error:', err);
-      res.status(500).json({ error: 'Failed to create checkout session', details: err.message });
+    } catch (err: unknown) {
+      logger.error({ err }, 'Checkout session creation failed');
+      res.status(500).json({ error: 'Failed to create checkout session' });
     }
   });
 
@@ -51,8 +51,8 @@ export function createPaymentRoutes(stripeService: StripeService): Router {
 
       const result = await stripeService.verifySession(sessionId);
       res.json(result);
-    } catch (err: any) {
-      console.error('Verify error:', err.message);
+    } catch (err: unknown) {
+      logger.error({ err }, 'Checkout verification failed');
       res.status(500).json({ error: 'Failed to verify session' });
     }
   });
@@ -97,8 +97,8 @@ export function createWebhookHandler(stripeService: StripeService) {
       } else {
         res.status(400).json({ error: result.error });
       }
-    } catch (err: any) {
-      console.error('Webhook error:', err.message);
+    } catch (err: unknown) {
+      logger.error({ err }, 'Stripe webhook processing failed');
       res.status(500).json({ error: 'Webhook processing failed' });
     }
   };

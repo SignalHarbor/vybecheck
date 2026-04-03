@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { UserRepository } from '../db/repositories/UserRepository';
 import type { DatabaseInstance } from '../db/database';
+import logger from '../utils/logger';
 
 export interface TwitterUserProfile {
   twitterId: string;
@@ -60,8 +61,8 @@ export class AuthService {
 
     if (!tokenResponse.ok) {
       const errorBody = await tokenResponse.text();
-      console.error('Twitter token exchange failed:', tokenResponse.status, errorBody);
-      throw new Error(`Twitter token exchange failed: ${tokenResponse.status}`);
+      logger.error({ status: tokenResponse.status, body: errorBody }, 'Twitter token exchange failed');
+      throw new Error('Twitter token exchange failed');
     }
 
     const tokenData = await tokenResponse.json() as {
@@ -79,8 +80,8 @@ export class AuthService {
 
     if (!profileResponse.ok) {
       const errorBody = await profileResponse.text();
-      console.error('Twitter profile fetch failed:', profileResponse.status, errorBody);
-      throw new Error(`Twitter profile fetch failed: ${profileResponse.status}`);
+      logger.error({ status: profileResponse.status, body: errorBody }, 'Twitter profile fetch failed');
+      throw new Error('Twitter profile fetch failed');
     }
 
     const profileData = await profileResponse.json() as {

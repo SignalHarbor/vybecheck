@@ -16,6 +16,7 @@ import { ResponseRepository } from '../db/repositories/ResponseRepository';
 import { LedgerRepository } from '../db/repositories/LedgerRepository';
 import { UnlockRepository } from '../db/repositories/UnlockRepository';
 import { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
+import logger from '../utils/logger';
 
 // Pricing constants
 const FEATURE_COSTS: Record<UnlockableFeature, number> = {
@@ -122,7 +123,7 @@ export class WebSocketHandler {
       this.sessions.set(session.sessionId, session);
     }
 
-    console.log(`Hydrated ${activeSessionRows.length} sessions from database`);
+    logger.info({ count: activeSessionRows.length }, 'Hydrated sessions from database');
   }
 
   /**
@@ -133,14 +134,14 @@ export class WebSocketHandler {
   }
 
   handleConnection(ws: WebSocket) {
-    console.log('Client connected');
+    logger.info('Client connected');
 
     ws.on('message', (data: Buffer) => {
       try {
         const message: ClientMessage = JSON.parse(data.toString());
         this.handleMessage(ws, message);
       } catch (error) {
-        console.error('Error parsing message:', error);
+        logger.error({ err: error }, 'Error parsing WebSocket message');
         this.sendError(ws, 'Invalid message format');
       }
     });
@@ -150,7 +151,7 @@ export class WebSocketHandler {
     });
 
     ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+      logger.error({ err: error }, 'WebSocket connection error');
     });
   }
 
@@ -269,7 +270,7 @@ export class WebSocketHandler {
     const participantId = generateParticipantId();
     const participant: Participant = {
       id: participantId,
-      username: data.username || null,
+      username: data.username || `guest_${participantId.slice(0, 6)}`,
       connection: ws,
       isOwner: false,
       joinedAt: new Date(),
@@ -354,7 +355,7 @@ export class WebSocketHandler {
       data: this.toParticipantInfo(participant),
     }, ws);
 
-    console.log(`Participant ${participant.id} reconnected to session ${session.sessionId}`);
+    logger.info({ participantId: participant.id, sessionId: session.sessionId }, 'Participant reconnected');
   }
 
   private handleQuestionAdd(ws: WebSocket, data: { prompt: string; options: [string, string]; timer?: number; ownerResponse?: string }) {
@@ -459,8 +460,10 @@ export class WebSocketHandler {
         type: 'notification',
         message: 'New question added!'
       });
-    } catch (error: any) {
-      this.sendError(ws, error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error({ err: error, sessionId: session.sessionId }, 'Failed to add question');
+      this.sendError(ws, 'Failed to add question');
     }
   }
 
@@ -564,8 +567,10 @@ export class WebSocketHandler {
       if (owner && owner.connection && owner.id !== connectionInfo.participantId && owner.isActive) {
         this.sendQuizState(owner.connection, session, owner.id);
       }
-    } catch (error: any) {
-      this.sendError(ws, error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error({ err: error, sessionId: session.sessionId }, 'Failed to record response');
+      this.sendError(ws, 'Failed to submit response');
     }
   }
 
@@ -603,8 +608,8 @@ export class WebSocketHandler {
         }
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to start session';
-      this.sendError(ws, message);
+      logger.error({ err: error, sessionId: session.sessionId }, 'Failed to start session');
+      this.sendError(ws, 'Failed to start session');
     }
   }
 
@@ -642,8 +647,8 @@ export class WebSocketHandler {
         }
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to release results';
-      this.sendError(ws, message);
+      logger.error({ err: error, sessionId: session.sessionId }, 'Failed to release results');
+      this.sendError(ws, 'Failed to release results');
     }
   }
 
@@ -801,7 +806,7 @@ export class WebSocketHandler {
       }
       this.connections.delete(ws);
     }
-    console.log('Client disconnected');
+    logger.info({ participantId: connectionInfo?.participantId }, 'Client disconnected');
   }
 
   private sendQuizState(ws: WebSocket, session: QuizSession, participantId: string) {

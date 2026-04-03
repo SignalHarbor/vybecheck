@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import type { VybeLedger } from '../models/VybeLedger';
 import type { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
+import logger from '../utils/logger';
 
 // Pack configuration - replace with your actual Stripe Price IDs
 export interface VybePack {
@@ -149,7 +150,7 @@ export class StripeService {
         this.webhookSecret
       );
     } catch (err: any) {
-      console.error('Webhook signature verification failed:', err.message);
+      logger.error({ err }, 'Webhook signature verification failed');
       return { success: false, error: 'Invalid signature' };
     }
 
@@ -170,7 +171,7 @@ export class StripeService {
     const { participantId, vybes } = session.metadata || {};
 
     if (!participantId || !vybes) {
-      console.error('Missing metadata in checkout session:', session.id);
+      logger.error({ sessionId: session.id }, 'Missing metadata in checkout session');
       return { success: false, error: 'Missing metadata' };
     }
 
@@ -179,13 +180,13 @@ export class StripeService {
       ? this.stripeSessionRepo.isProcessed(session.id)
       : this.processedSessions.has(session.id);
     if (alreadyProcessed) {
-      console.log('Session already processed:', session.id);
+      logger.info({ sessionId: session.id }, 'Checkout session already processed');
       return { success: true, participantId, vybesAdded: 0 };
     }
 
     const vybesAmount = parseInt(vybes, 10);
     if (isNaN(vybesAmount) || vybesAmount <= 0) {
-      console.error('Invalid vybes amount:', vybes);
+      logger.error({ vybes, sessionId: session.id }, 'Invalid vybes amount in checkout');
       return { success: false, error: 'Invalid vybes amount' };
     }
 
@@ -203,7 +204,7 @@ export class StripeService {
       }
       this.processedSessions.add(session.id);
 
-      console.log(`Credited ${vybesAmount} Vybes to participant ${participantId}`);
+      logger.info({ participantId, vybesAmount }, 'Credited Vybes from purchase');
 
       return {
         success: true,
@@ -211,7 +212,7 @@ export class StripeService {
         vybesAdded: vybesAmount,
       };
     } catch (err: any) {
-      console.error('Failed to credit Vybes:', err.message);
+      logger.error({ err }, 'Failed to credit Vybes');
       return { success: false, error: 'Failed to credit Vybes' };
     }
   }
@@ -250,9 +251,9 @@ export class StripeService {
             }
             this.processedSessions.add(sessionId);
             credited = true;
-            console.log(`[verifySession] Credited ${vybesAmount} Vybes to ${participantId}`);
+            logger.info({ participantId, vybesAmount }, 'Credited Vybes via session verification');
           } catch (err: any) {
-            console.error('[verifySession] Failed to credit Vybes:', err.message);
+            logger.error({ err }, 'Failed to credit Vybes during verification');
           }
         }
 
@@ -266,7 +267,7 @@ export class StripeService {
 
       return { paid: false };
     } catch (err) {
-      console.error('Failed to verify session:', err);
+      logger.error({ err }, 'Failed to verify Stripe session');
       return { paid: false };
     }
   }
