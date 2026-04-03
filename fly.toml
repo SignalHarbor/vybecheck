@@ -9,34 +9,19 @@ primary_region = 'iad'
 [build]
 
 [http_service]
-  internal_port = 80
+  internal_port = 3000
   force_https = true
   auto_stop_machines = 'suspend'
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
 
-[[services]]
-  protocol = 'tcp'
-  internal_port = 3000
-  processes = ['app']
-
-  [[services.ports]]
-    port = 80
-    handlers = ['http']
-    force_https = true
-
-  [[services.ports]]
-    port = 443
-    handlers = ['http', 'tls']
-
-  [services.concurrency]
-    type = 'connections'
-    hard_limit = 25
-    soft_limit = 20
-
 [[vm]]
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 256
+
+[mounts]
+  source = "vybecheck_data"
+  destination = "/app/data"
