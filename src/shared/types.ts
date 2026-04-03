@@ -12,6 +12,7 @@ export type MatchTier = 'PREVIEW' | 'TOP3' | 'ALL';
 export type ClientMessage =
   | { type: 'session:create'; data: { username?: string } }
   | { type: 'session:join'; data: { sessionId: string; username?: string } }
+  | { type: 'session:reconnect'; data: { sessionId: string; participantId: string } }
   | { type: 'session:leave' }
   | { type: 'session:start' }
   | { type: 'session:release-results' }
@@ -27,6 +28,7 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'session:created'; data: { sessionId: string; participantId: string; vybesBalance: number } }
   | { type: 'session:joined'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
+  | { type: 'session:reconnected'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
   | { type: 'session:started' }
   | { type: 'session:results-released' }
   | { type: 'quiz:state'; data: QuizState }

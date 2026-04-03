@@ -162,6 +162,9 @@ export class WebSocketHandler {
       case 'session:join':
         this.handleSessionJoin(ws, message.data);
         break;
+      case 'session:reconnect':
+        this.handleSessionReconnect(ws, message.data);
+        break;
       case 'session:start':
         this.handleSessionStart(ws);
         break;
@@ -195,6 +198,16 @@ export class WebSocketHandler {
   }
 
   private handleSessionCreate(ws: WebSocket, data: { username?: string }) {
+    // Prevent creating more than one session per connection
+    const existing = this.connections.get(ws);
+    if (existing) {
+      const existingSession = this.sessions.get(existing.sessionId);
+      if (existingSession && existingSession.status !== 'expired') {
+        this.sendError(ws, 'You already have an active session');
+        return;
+      }
+    }
+
     const participantId = generateParticipantId();
     const session = new QuizSession(participantId);
 
@@ -294,6 +307,54 @@ export class WebSocketHandler {
       type: 'participant:joined',
       data: this.toParticipantInfo(participant)
     }, ws);
+  }
+
+  private handleSessionReconnect(ws: WebSocket, data: { sessionId: string; participantId: string }) {
+    const session = this.sessions.get(data.sessionId);
+
+    if (!session) {
+      this.sendError(ws, `Session ${data.sessionId} not found`);
+      return;
+    }
+
+    const participant = session.participants.get(data.participantId);
+    if (!participant) {
+      this.sendError(ws, `Participant ${data.participantId} not found in session`);
+      return;
+    }
+
+    // Reattach WebSocket connection
+    participant.connection = ws;
+    participant.isActive = true;
+    participant.lastActiveAt = new Date();
+    this.connections.set(ws, { sessionId: session.sessionId, participantId: participant.id });
+
+    // Persist reconnect to DB
+    if (this.sessionRepo) {
+      this.sessionRepo.updateParticipantActive(participant.id, true);
+    }
+
+    const vybesBalance = this.billingService.getBalance(participant.id);
+
+    this.send(ws, {
+      type: 'session:reconnected',
+      data: {
+        sessionId: session.sessionId,
+        participantId: participant.id,
+        isOwner: participant.isOwner,
+        vybesBalance,
+      },
+    });
+
+    this.sendQuizState(ws, session, participant.id);
+
+    // Notify other participants
+    this.broadcastToSession(session, {
+      type: 'participant:joined',
+      data: this.toParticipantInfo(participant),
+    }, ws);
+
+    console.log(`Participant ${participant.id} reconnected to session ${session.sessionId}`);
   }
 
   private handleQuestionAdd(ws: WebSocket, data: { prompt: string; options: [string, string]; timer?: number; ownerResponse?: string }) {

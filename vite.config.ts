@@ -10,7 +10,7 @@ export default defineConfig(({ command, mode }) => {
       port: 5173,
       proxy: {
         '/ws': {
-          target: env.VITE_WS_URL,
+          target: env.VITE_SERVER_URL,
           ws: true,
         },
         '/api': {

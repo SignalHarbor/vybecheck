@@ -7,6 +7,8 @@ import { StripeService } from './server/services/StripeService';
 import { createPaymentRoutes, createWebhookHandler } from './server/routes/payment';
 import { createVybesRoutes } from './server/routes/vybes';
 import { createAIRoutes } from './server/routes/ai';
+import { createAuthRoutes } from './server/routes/auth';
+import { AuthService } from './server/services/AuthService';
 import { initDatabase } from './server/db/database';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -57,6 +59,10 @@ app.use('/api/vybes', createVybesRoutes(wsHandler.getVybeLedger()));
 
 // AI routes (transcription + question generation)
 app.use('/api/ai', createAIRoutes());
+
+// Auth routes (Twitter OAuth)
+const authService = new AuthService(db);
+app.use('/api/auth', createAuthRoutes(authService));
 
 // SPA catch-all: serve index.html for any non-API routes (client-side routing)
 app.get('*', (_req, res) => {

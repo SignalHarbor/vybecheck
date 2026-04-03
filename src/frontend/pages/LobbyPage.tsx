@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
+import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { useDraftStore } from '../store/draftStore';
 
 export function LobbyPage() {
   const { sessionId, participantId, quizState, isOwner } = useQuizStore();
   const { send } = useWebSocketStore();
+  const { twitterUsername } = useAuthStore();
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
   const [joinSessionId, setJoinSessionId] = useState('');
@@ -17,7 +19,7 @@ export function LobbyPage() {
   if (!sessionId || !quizState) {
     const handleCreateSession = () => {
       setIsCreating(true);
-      send({ type: 'session:create', data: {} });
+      send({ type: 'session:create', data: { username: twitterUsername || undefined } });
 
       if (draftQuestions.length > 0) {
         setTimeout(() => {
@@ -42,7 +44,7 @@ export function LobbyPage() {
         showError('Please enter a session ID');
         return;
       }
-      send({ type: 'session:join', data: { sessionId: joinSessionId } });
+      send({ type: 'session:join', data: { sessionId: joinSessionId, username: twitterUsername || undefined } });
     };
 
     return (

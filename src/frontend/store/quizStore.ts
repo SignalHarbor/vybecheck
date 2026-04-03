@@ -3,6 +3,7 @@ import type { QuizState, MatchResult, MatchTier } from '../../shared/types';
 
 const PARTICIPANT_STORAGE_KEY = 'vybecheck_participantId';
 const SESSION_STORAGE_KEY = 'vybecheck_sessionId';
+const OWNER_STORAGE_KEY = 'vybecheck_isOwner';
 
 interface MatchState {
   matches: MatchResult[];
@@ -66,10 +67,18 @@ const getStoredSessionId = (): string => {
   }
 };
 
+const getStoredIsOwner = (): boolean => {
+  try {
+    return localStorage.getItem(OWNER_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 export const useQuizStore = create<QuizStore>((set, get) => ({
   sessionId: getStoredSessionId(),
   participantId: getStoredParticipantId(),
-  isOwner: false,
+  isOwner: getStoredIsOwner(),
   quizState: null,
   matchState: initialMatchState,
   questionLimitState: null,
@@ -105,7 +114,18 @@ export const useQuizStore = create<QuizStore>((set, get) => ({
     set({ participantId });
   },
   
-  setIsOwner: (isOwner) => set({ isOwner }),
+  setIsOwner: (isOwner) => {
+    try {
+      if (isOwner) {
+        localStorage.setItem(OWNER_STORAGE_KEY, 'true');
+      } else {
+        localStorage.removeItem(OWNER_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    set({ isOwner });
+  },
   
   setQuizState: (quizState) => set({ quizState }),
   
@@ -130,12 +150,21 @@ export const useQuizStore = create<QuizStore>((set, get) => ({
   
   clearQuestionLimitState: () => set({ questionLimitState: null }),
   
-  reset: () => set({
-    sessionId: '',
-    participantId: '',
-    isOwner: false,
-    quizState: null,
-    matchState: initialMatchState,
-    questionLimitState: null,
-  }),
+  reset: () => {
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem(PARTICIPANT_STORAGE_KEY);
+      localStorage.removeItem(OWNER_STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
+    set({
+      sessionId: '',
+      participantId: '',
+      isOwner: false,
+      quizState: null,
+      matchState: initialMatchState,
+      questionLimitState: null,
+    });
+  },
 }));

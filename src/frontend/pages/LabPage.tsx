@@ -17,7 +17,7 @@ export function LabPage() {
   const { send } = useWebSocketStore();
   const { showNotification, showError, setActivePage } = useUIStore();
   const { sessionId, quizState, questionLimitState, isOwner } = useQuizStore();
-  const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit } = useAuthStore();
+  const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit, twitterUsername } = useAuthStore();
   const [isUnlocking, setIsUnlocking] = useState(false);
 
   const [questionPrompt, setQuestionPrompt] = useState('');
@@ -171,7 +171,7 @@ export function LabPage() {
       // Need to create session first, then upgrade, then publish
       setPendingNeedsUpgrade(true);
       setPendingPublish(true);
-      send({ type: 'session:create', data: {} });
+      send({ type: 'session:create', data: { username: twitterUsername || undefined } });
     } else {
       // Already in session — upgrade then publish immediately
       send({ type: 'question:unlock-limit' });
@@ -195,7 +195,7 @@ export function LabPage() {
   const confirmCreateSession = () => {
     setShowCreateSessionDialog(false);
     setPendingPublish(true);
-    send({ type: 'session:create', data: {} });
+    send({ type: 'session:create', data: { username: twitterUsername || undefined } });
   };
 
   // Question limit: use server-authoritative value when in a session, fallback to client

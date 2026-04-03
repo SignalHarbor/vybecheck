@@ -32,11 +32,13 @@ npm test QuizSession        # Run specific test file
 After running `npm run dev`, access the app at `http://localhost:3000`
 
 ## Tech Stack
-- Node.js + Express (REST API for payments, vybes balance/history)
+- Node.js + Express (REST API for payments, vybes balance/history, auth)
 - WebSockets for real-time game sessions only (quiz create/join, questions, responses, matches)
 - React + Vite (frontend SPA)
 - Zustand for client state management
+- SQLite via `better-sqlite3` (persistence, write-through caching)
 - Stripe for payment processing
+- Twitter OAuth 2.0 with PKCE + JWT (`jsonwebtoken`)
 - TypeScript (ES2022 modules, strict mode)
 - Vitest for testing
 
@@ -151,6 +153,8 @@ Messages defined in `src/shared/types.ts`:
 - `notification` / `error` / `pong` - System messages
 
 #### REST API Endpoints ✅
+- `POST /api/auth/twitter/token` - Exchange OAuth code for JWT + user profile
+- `GET /api/auth/me` - Validate JWT, return user profile
 - `POST /api/checkout` - Create Stripe checkout session
 - `GET /api/checkout/verify` - Verify checkout session status
 - `GET /api/packs` - List available Vybe packs
@@ -229,24 +233,38 @@ Integrate AI to generate questions from Twitter Spaces audio.
 - Export results as shareable image for social media
 - Locked/preview state for premium features
 
-### Phase 7: Authentication & Twitter Integration
-Add user authentication with Twitter OAuth.
+### Phase 7: Authentication & Twitter Integration ✅
+**Status: COMPLETED** - Twitter OAuth 2.0 with PKCE, JWT-based auth, persistent user records
 
-#### Twitter OAuth Setup
-- Register Twitter Developer app and obtain API keys
-- Add passport and passport-twitter packages
-- Create src/auth/twitter.ts authentication strategy
-- Implement OAuth callback handling
-- Store user tokens securely (environment variables/secrets manager)
+#### Twitter OAuth 2.0 with PKCE ✅
+- OAuth 2.0 Authorization Code flow with PKCE (no client secret needed on frontend)
+- `src/frontend/utils/pkce.ts`: code verifier/challenge generation using `crypto.subtle`
+- `src/frontend/store/authStore.ts`: real PKCE redirect flow replaces mock sign-in
+- `src/frontend/pages/AuthCallback.tsx`: handles Twitter redirect, state validation, code exchange
+- Scopes: `tweet.read`, `users.read`, `offline.access`
 
-#### User Session Management
-- Add session middleware (express-session)
-- Create User model: twitterId, username, displayName, profileImage, credits
-- Link WebSocket connections to authenticated users
-- Implement guest user flow (limited features)
-- Store user data in database
+#### Server Auth ✅
+- `src/server/services/AuthService.ts`: Twitter token exchange, profile fetch (`/2/users/me`), user upsert in DB, JWT signing (30-day expiry)
+- `src/server/routes/auth.ts`: `POST /api/auth/twitter/token` (code exchange), `GET /api/auth/me` (JWT validation + profile)
+- Users persisted in `users` table via `UserRepository`
+- JWT contains `userId` (DB primary key), verified on `/api/auth/me`
 
-#### Feature Gating
+#### Frontend Auth Flow ✅
+- `signInWithTwitter()` → generates PKCE params → stores in `sessionStorage` → redirects to Twitter
+- Twitter redirects to `/auth/callback` → `AuthCallback` validates state, exchanges code → stores JWT + profile in `localStorage`
+- `revalidateSession()` calls `GET /api/auth/me` on page load to restore session
+- Auth state: `twitterId`, `displayName`, `profileImageUrl`, `authToken` (JWT), `twitterUsername`
+
+#### Environment Variables
+- `VITE_TWITTER_CLIENT_ID` - Twitter app client ID (public, safe for PKCE)
+- `VITE_TWITTER_REDIRECT_URI` - OAuth callback URL
+- `JWT_SECRET` - Server-only secret for JWT signing
+
+#### Dependencies Added
+- `jsonwebtoken` - JWT signing/verification
+- No `passport` or `passport-twitter` needed (PKCE uses standard fetch + crypto)
+
+#### Feature Gating (TODO)
 - Allow non-signed-in users to view public stats only
 - Require Twitter auth for quiz participation
 - Implement credit check before revealing closest match
@@ -308,24 +326,48 @@ Non-signed-in users can view general platform statistics including:
 - Add real-time participant count
 - Make stats publicly accessible without login
 
-### Phase 10: Database & Persistence
-Add database layer for data persistence.
+### Phase 10: Database & Persistence ✅
+**Status: COMPLETED** - SQLite via `better-sqlite3` with write-through caching
 
-#### Database Setup
-- Choose database (PostgreSQL or MongoDB recommended)
-- Add database driver (pg or mongoose)
-- Create src/db/schema.ts with models: Users, Questions, QuizSessions (with status and expirationDate), Responses, Matches
-- Implement connection pooling and error handling
-- Add indexing for efficient querying of long-running quizzes and historical data
+#### Database Setup ✅
+- SQLite via `better-sqlite3` (synchronous, zero-infrastructure, single-file DB)
+- `src/server/db/database.ts`: schema initialization with 8 tables, WAL mode, indexes
+- Database file: `./data/vybecheck.db` (gitignored, auto-created on first run)
+- `initTestDatabase()` for in-memory `:memory:` DB in tests
 
-#### Data Persistence
-- Store users, questions, and quiz sessions persistently with status tracking
-- Save participant responses and match results with timestamps
-- Track historical matching data and response patterns
-- Support querying active quizzes (available for new participants)
-- Archive expired quizzes (older than 2-3 months) but keep data accessible
-- Add database migrations system
-- Implement efficient queries for matching participants across different completion times
+#### Schema (8 tables) ✅
+- `users` - Twitter OAuth user records (twitterId, username, displayName, tokens)
+- `sessions` - Quiz sessions (id, ownerId, status, resultsReleased, timestamps)
+- `participants` - Session participants (linked to sessions and optionally users)
+- `questions` - Quiz questions (prompt, options, sort order)
+- `responses` - Participant responses (with UNIQUE constraint on participant+question)
+- `ledger` - Vybes transaction ledger (append-only)
+- `feature_unlocks` - Participant feature unlocks (with UNIQUE constraint)
+- `processed_stripe_sessions` - Stripe idempotency tracking
+
+#### Repository Pattern ✅
+- `src/server/db/repositories/SessionRepository.ts` - CRUD for sessions, participants, questions
+- `src/server/db/repositories/ResponseRepository.ts` - Response CRUD
+- `src/server/db/repositories/LedgerRepository.ts` - Append-only ledger ops, balance queries
+- `src/server/db/repositories/UnlockRepository.ts` - Feature unlock CRUD
+- `src/server/db/repositories/StripeSessionRepository.ts` - Stripe idempotency
+- `src/server/db/repositories/UserRepository.ts` - User upsert/lookup
+
+#### Write-Through Caching ✅
+- In-memory data structures remain as cache; DB is source of truth on restart
+- `VybeLedger` writes through to `LedgerRepository` on every transaction
+- `ParticipantUnlockManager` writes through to `UnlockRepository`
+- `StripeService` uses `StripeSessionRepository` for persistent idempotency
+- `WebSocketHandler` persists sessions, participants, questions, responses, status changes
+- All models hydrate from DB on server startup
+
+#### Testing ✅
+- 30 repository unit tests (`tests/unit/Repositories.test.ts`)
+- 5 persistence integration tests (`tests/integration/Persistence.test.ts`) - data survives close/reopen
+- All models accept DB as optional (backward compatible, 280 total tests passing)
+
+#### Environment Variables
+- `DB_PATH` - Optional, defaults to `./data/vybecheck.db`
 
 ### Phase 11: Production Readiness
 Prepare for deployment and scale.
@@ -415,6 +457,7 @@ Plan for Redis pub/sub when scaling WebSocket to multiple server instances in pr
 - VybeLedger.test.ts - Append-only ledger, transaction history
 - ParticipantUnlock.test.ts - Feature unlock tracking
 - QuotaManager.test.ts - Question limits, unlock checks
+- Repositories.test.ts - All 6 DB repositories (SessionRepository, ResponseRepository, LedgerRepository, UnlockRepository, StripeSessionRepository, UserRepository)
 
 ### Integration Tests (`tests/integration/`)
 - WebSocketHandler.test.ts - WebSocket message handling
@@ -423,6 +466,7 @@ Plan for Redis pub/sub when scaling WebSocket to multiple server instances in pr
 - DynamicMatchUpdates.test.ts - Match recalculation
 - PurchaseFlow.test.ts - End-to-end purchase flow
 - CacheBehavior.test.ts - Idempotency and caching
+- Persistence.test.ts - Data survives DB close/reopen (sessions, ledger, unlocks, Stripe idempotency)
 
 ### Edge Case Tests (`tests/edge-cases/`)
 - EdgeCases.test.ts - Boundary conditions and error handling
@@ -446,8 +490,9 @@ Run manual tests by starting dev server and opening multiple browser tabs to `ht
 When making changes, key files to reference:
 - Server entry: `src/server.ts`
 - Server models: `src/server/models/` (QuizSession, Question, Response, Participant, VybeLedger, ParticipantUnlock, QuotaManager)
-- Server services: `src/server/services/` (WebSocketHandler, MatchingService, BillingService, StripeService)
-- Server routes: `src/server/routes/` (payment.ts, vybes.ts)
+- Server services: `src/server/services/` (WebSocketHandler, MatchingService, BillingService, StripeService, AuthService)
+- Server routes: `src/server/routes/` (payment.ts, vybes.ts, auth.ts)
+- Database: `src/server/db/database.ts`, `src/server/db/repositories/`
 - Shared types: `src/shared/types.ts`
 - Frontend entry: `src/frontend/App.tsx`
 - Frontend pages: `src/frontend/pages/`

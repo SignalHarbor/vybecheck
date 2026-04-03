@@ -16,18 +16,35 @@ import { VybesPage } from './pages/VybesPage';
 import { PurchaseSuccess } from './pages/PurchaseSuccess';
 import { PurchaseCancel } from './pages/PurchaseCancel';
 import { PurchaseError } from './pages/PurchaseError';
+import { AuthCallback } from './pages/AuthCallback';
 
 function App() {
   // Zustand stores
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
-  const { sessionId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner } = useQuizStore();
-  const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory } = useAuthStore();
+  const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, reset: resetQuizStore } = useQuizStore();
+  const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
   const { activePage, setActivePage, notification, error, showNotification, showError } = useUIStore();
   const { draftQuestions } = useDraftStore();
 
-  // WebSocket setup
+  // Revalidate auth session on app load
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL;
+    if (authToken) {
+      revalidateSession();
+    }
+  }, []);
+
+  // WebSocket setup (skip on transient pages that redirect away immediately)
+  const isTransientPage = ['/auth/callback', '/purchase/success', '/purchase/cancel', '/purchase/error']
+    .includes(window.location.pathname);
+
+  useEffect(() => {
+    if (isTransientPage) return;
+
+    // In production, WS is on the same host. In dev, connect directly to the backend.
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = import.meta.env.DEV
+      ? 'ws://localhost:3000'
+      : `${wsProtocol}//${window.location.host}`;
     const websocket = new WebSocket(wsUrl);
     let hasConnected = false;
 
@@ -36,6 +53,17 @@ function App() {
       hasConnected = true;
       setConnected(true);
       setWebSocket(websocket);
+
+      // Auto-reconnect to existing session if we have stored state
+      const storedSessionId = useQuizStore.getState().sessionId;
+      const storedParticipantId = useQuizStore.getState().participantId;
+      if (storedSessionId && storedParticipantId) {
+        console.log('[Reconnect] Attempting to rejoin session:', storedSessionId);
+        websocket.send(JSON.stringify({
+          type: 'session:reconnect',
+          data: { sessionId: storedSessionId, participantId: storedParticipantId },
+        }));
+      }
     });
 
     websocket.addEventListener('message', (event) => {
@@ -84,10 +112,18 @@ function App() {
         setVybesBalance(message.data.vybesBalance);
         // Mark as signed in (as guest participant if not already signed in)
         if (!isSignedIn) {
-          setSignedIn(`Guest_${message.data.participantId.slice(0, 6)}`);
+          setSignedIn(`Guest`);
         }
         // Navigate to lobby (waiting room) for participants
         setActivePage(message.data.isOwner ? 'lab' : 'lobby');
+        break;
+
+      case 'session:reconnected':
+        console.log('[Reconnect] Successfully rejoined session:', message.data.sessionId);
+        setSessionId(message.data.sessionId);
+        setParticipantId(message.data.participantId);
+        setIsOwner(message.data.isOwner);
+        setVybesBalance(message.data.vybesBalance);
         break;
 
       case 'session:started':
@@ -197,6 +233,11 @@ function App() {
         break;
 
       case 'error':
+        // If reconnect failed, clear stale session state
+        if (message.message.includes('not found')) {
+          console.log('[Reconnect] Session/participant not found, clearing stored state');
+          resetQuizStore();
+        }
         showError(message.message);
         break;
     }
@@ -211,8 +252,11 @@ function App() {
     vybes: 'Vybes',
   };
 
-  // Check for purchase routes (path-based routing)
+  // Check for path-based routes
   const pathname = window.location.pathname;
+  if (pathname === '/auth/callback') {
+    return <AuthCallback />;
+  }
   if (pathname === '/purchase/success') {
     return <PurchaseSuccess />;
   }
@@ -238,6 +282,11 @@ function App() {
         <StartPage />
       </div>
     );
+  }
+
+  // Signed-in users shouldn't be on 'start' — default to 'lab'
+  if (activePage === 'start') {
+    setActivePage('lab');
   }
 
   return (

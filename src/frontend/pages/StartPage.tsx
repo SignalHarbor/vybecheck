@@ -5,7 +5,7 @@ import { useUIStore } from '../store/uiStore';
 import logo from '../assets/logo.png';
 
 export function StartPage() {
-  const { isSigningIn, signInWithTwitter } = useAuthStore();
+  const { isSigningIn, signInWithTwitter, twitterUsername } = useAuthStore();
   const { send } = useWebSocketStore();
   const { error, notification, showError, setActivePage } = useUIStore();
 
@@ -13,11 +13,7 @@ export function StartPage() {
 
   const handleSignIn = () => {
     signInWithTwitter();
-    // After sign-in completes, user will be redirected to Lab via App.tsx routing
-    // The activePage will default to 'lab' after sign-in
-    setTimeout(() => {
-      setActivePage('lab');
-    }, 2100); // Slightly after the 2000ms mock sign-in delay
+    // signInWithTwitter() redirects to Twitter — no follow-up needed here
   };
 
   const joinSession = () => {
@@ -25,7 +21,7 @@ export function StartPage() {
       showError('Please enter a session ID');
       return;
     }
-    send({ type: 'session:join', data: { sessionId: joinSessionId } });
+    send({ type: 'session:join', data: { sessionId: joinSessionId, username: twitterUsername || undefined } });
   };
 
   return (
