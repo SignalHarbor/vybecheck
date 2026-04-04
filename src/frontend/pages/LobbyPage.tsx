@@ -143,7 +143,7 @@ export function LobbyPage() {
           )}
 
           {/* Vybes upsell */}
-          <div
+          {isAuthenticated && <div
             className="relative cursor-pointer overflow-hidden rounded-3xl bg-gradient-dark p-5 shadow-card-dark"
             onClick={() => setActivePage('vybes')}
           >
@@ -157,7 +157,7 @@ export function LobbyPage() {
                 <Zap size={17} className="fill-ink text-ink" />
               </div>
             </div>
-          </div>
+          </div>}
         </div>
       </div>
     );

@@ -203,6 +203,9 @@ export function LabPage() {
         <div className="flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/15 px-2.5 py-1">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-status-success" />
           <span className="text-[11px] font-bold text-status-success">Live</span>
+          <span className="mx-0.5 text-status-success/30">|</span>
+          <Radio size={10} className="text-status-success/60" />
+          <span className="font-mono text-[10px] text-status-success/70">{sessionId?.slice(0, 8)}…</span>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
@@ -215,12 +218,6 @@ export function LabPage() {
           <span className="text-[11px] text-white/55">{draftQuestions.length} draft{draftQuestions.length !== 1 ? 's' : ''}</span>
         </div>
       )}
-      {hasActiveSession && (
-        <div className="ml-auto flex items-center gap-1 rounded-full bg-white/7 px-2.5 py-1">
-          <Radio size={10} className="text-white/40" />
-          <span className="font-mono text-[10px] text-white/40">{sessionId?.slice(0, 8)}…</span>
-        </div>
-      )}
     </>
   );
 
@@ -229,8 +226,6 @@ export function LabPage() {
       <Header
         title="Lab"
         subtitle="Host your session ✨"
-        actionIcon={<FlaskConical size={13} />}
-        actionColor="muted"
         pills={headerPills}
       />
 
@@ -306,41 +301,43 @@ export function LabPage() {
           />
 
           <div className="mb-3 grid grid-cols-2 gap-2">
-            <input
-              value={option1}
-              onChange={(e) => setOption1(e.target.value)}
-              placeholder="Option A"
-              className="box-border rounded-xl border border-border-light bg-surface-page px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
-            />
-            <input
-              value={option2}
-              onChange={(e) => setOption2(e.target.value)}
-              placeholder="Option B"
-              className="box-border rounded-xl border border-border-light bg-surface-page px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
-            />
-          </div>
-
-          {/* Owner Response Selection */}
-          {option1 && option2 && (
-            <div className="mb-3">
-              <label className="block mb-2 text-[12px] font-bold text-ink-muted">Your Answer:</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[option1, option2].map(opt => (
-                  <button
-                    key={opt}
-                    onClick={() => setOwnerResponseState(opt)}
-                    className={`rounded-xl py-3 px-3 text-center text-[13px] font-semibold transition-all cursor-pointer ${
-                      ownerResponse === opt
-                        ? 'border-2 border-status-success bg-tint-green text-status-success-dark'
-                        : 'border border-border-light bg-surface-page text-ink'
-                    }`}
-                  >
-                    {opt}{ownerResponse === opt && ' ✓'}
-                  </button>
-                ))}
-              </div>
+            <div
+              onClick={() => option1.trim() && setOwnerResponseState(option1)}
+              className={`rounded-xl transition-all ${
+                ownerResponse && ownerResponse === option1
+                  ? 'border-2 border-status-success bg-tint-green ring-1 ring-status-success/30'
+                  : 'border border-border-light bg-surface-page'
+              }`}
+            >
+              <input
+                value={option1}
+                onChange={(e) => {
+                  setOption1(e.target.value);
+                  if (ownerResponse === option1) setOwnerResponseState(e.target.value);
+                }}
+                placeholder="Option A"
+                className="box-border w-full rounded-xl border-0 bg-transparent px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+              />
             </div>
-          )}
+            <div
+              onClick={() => option2.trim() && setOwnerResponseState(option2)}
+              className={`rounded-xl transition-all ${
+                ownerResponse && ownerResponse === option2
+                  ? 'border-2 border-status-success bg-tint-green ring-1 ring-status-success/30'
+                  : 'border border-border-light bg-surface-page'
+              }`}
+            >
+              <input
+                value={option2}
+                onChange={(e) => {
+                  setOption2(e.target.value);
+                  if (ownerResponse === option2) setOwnerResponseState(e.target.value);
+                }}
+                placeholder="Option B"
+                className="box-border w-full rounded-xl border-0 bg-transparent px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+              />
+            </div>
+          </div>
 
           <button
             onClick={addQuestionToDraft}
