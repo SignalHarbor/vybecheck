@@ -6,7 +6,6 @@ import { useQuizStore } from './store/quizStore';
 import { useUIStore } from './store/uiStore';
 import { useDraftStore } from './store/draftStore';
 import { LoadingScreen } from './components/LoadingScreen';
-import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { StartPage } from './pages/StartPage';
 import { LabPage } from './pages/LabPage';
@@ -243,15 +242,6 @@ function App() {
     }
   };
 
-  // Page titles
-  const pageTitles: Record<typeof activePage, string> = {
-    start: 'VybeCheck',
-    lab: 'Lab',
-    quiz: 'Quiz',
-    lobby: 'Lobby',
-    vybes: 'Vybes',
-  };
-
   // Check for path-based routes
   const pathname = window.location.pathname;
   if (pathname === '/auth/callback') {
@@ -269,7 +259,7 @@ function App() {
 
   if (!connected) {
     return (
-      <div className="w-screen max-w-app h-screen mx-auto bg-gray-100 flex flex-col overflow-hidden shadow-app relative">
+      <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <LoadingScreen message="Connecting to server..." />
       </div>
     );
@@ -278,7 +268,7 @@ function App() {
   // Show start page only when not signed in
   if (!isSignedIn) {
     return (
-      <div className="w-screen max-w-app h-screen mx-auto bg-gray-100 flex flex-col overflow-hidden shadow-app relative">
+      <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <StartPage />
       </div>
     );
@@ -290,31 +280,27 @@ function App() {
   }
 
   return (
-    <div className="w-screen max-w-app h-screen mx-auto bg-gray-100 flex flex-col overflow-hidden shadow-app relative pb-[env(safe-area-inset-bottom)]">
-      <Header title={pageTitles[activePage]} />
-
+    <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans">
       {/* Fixed toast notifications */}
       {(notification || error) && (
-        <div className="absolute top-[60px] left-0 right-0 z-50 px-4 pointer-events-none">
+        <div className="absolute top-16 left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white py-3 px-5 rounded-xl mb-2 text-center text-sm font-medium shadow-emerald animate-slide-down pointer-events-auto">
+            <div className="bg-gradient-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down pointer-events-auto">
               {notification}
             </div>
           )}
           {error && (
-            <div className="bg-gradient-to-br from-red-500 to-red-600 text-white py-3 px-5 rounded-xl mb-2 text-center text-sm font-medium shadow-[0_4px_16px_rgba(239,68,68,0.3)] animate-slide-down pointer-events-auto">
+            <div className="bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down pointer-events-auto">
               {error}
             </div>
           )}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-5 pb-[calc(80px+env(safe-area-inset-bottom))] relative min-h-0 [-webkit-overflow-scrolling:touch]">
-        {activePage === 'lab' && <LabPage />}
-        {activePage === 'quiz' && <QuizPage />}
-        {activePage === 'lobby' && <LobbyPage />}
-        {activePage === 'vybes' && <VybesPage />}
-      </div>
+      {activePage === 'lab' && <LabPage />}
+      {activePage === 'quiz' && <QuizPage />}
+      {activePage === 'lobby' && <LobbyPage />}
+      {activePage === 'vybes' && <VybesPage />}
 
       <BottomNav
         activePage={activePage}

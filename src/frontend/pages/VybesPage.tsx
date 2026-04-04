@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Sparkles, History, Lock, ChevronRight, Zap } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useUIStore } from '../store/uiStore';
+import { Header } from '../components/Header';
 import type { LedgerEntry } from '../../shared/types';
 
-// Transaction reason display names
 const REASON_LABELS: Record<string, string> = {
   INITIAL_VYBES: 'Welcome Bonus',
   PURCHASE_VYBES: 'Purchased',
@@ -11,28 +13,33 @@ const REASON_LABELS: Record<string, string> = {
   UNLOCK_QUESTION_LIMIT: 'Upgraded Question Limit',
 };
 
-// Pack IDs must match server-side StripeService VYBE_PACKS
 const VYBE_PACKS = [
   { id: 'starter', name: 'Starter Pack', vybes: 20, price: 5, popular: false },
   { id: 'pro', name: 'Pro Pack', vybes: 50, price: 10, popular: true },
   { id: 'ultimate', name: 'Ultimate Pack', vybes: 120, price: 20, popular: false },
 ];
 
+const UNLOCK_PRICING = [
+  { label: 'Preview Matches', cost: null, free: true },
+  { label: 'Top 3 Matches', cost: 2, free: false },
+  { label: 'All Matches', cost: 5, free: false },
+  { label: 'Extended Questions (10)', cost: 3, free: false },
+];
+
 export function VybesPage() {
   const { twitterUsername, vybesBalance, transactionHistory, setVybesBalance, setTransactionHistory } = useAuthStore();
+  const { setActivePage } = useUIStore();
   const [showHistory, setShowHistory] = useState(false);
+  const [selected, setSelected] = useState('pro');
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // Use twitterUsername as account ID (Vybes are account-based, not session-based)
   const accountId = twitterUsername || '';
 
-  // Fetch balance via REST API
   const fetchBalance = useCallback(async () => {
     if (!accountId) return;
-    
     setIsLoadingBalance(true);
     try {
       const response = await fetch(`/api/vybes/balance?participantId=${encodeURIComponent(accountId)}`);
@@ -47,10 +54,8 @@ export function VybesPage() {
     }
   }, [accountId, setVybesBalance]);
 
-  // Fetch transaction history via REST API
   const fetchHistory = useCallback(async () => {
     if (!accountId) return;
-    
     setIsLoadingHistory(true);
     try {
       const response = await fetch(`/api/vybes/history?participantId=${encodeURIComponent(accountId)}`);
@@ -65,45 +70,26 @@ export function VybesPage() {
     }
   }, [accountId, setTransactionHistory]);
 
-  // Fetch balance on mount
-  useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
-
-  // Fetch history when toggled
-  useEffect(() => {
-    if (showHistory) {
-      fetchHistory();
-    }
-  }, [showHistory, fetchHistory]);
+  useEffect(() => { fetchBalance(); }, [fetchBalance]);
+  useEffect(() => { if (showHistory) fetchHistory(); }, [showHistory, fetchHistory]);
 
   const handlePurchase = async (packId: string) => {
-    if (!accountId) {
-      setPurchaseError('Please sign in to purchase Vybes');
-      return;
-    }
-
+    if (!accountId) { setPurchaseError('Please sign in to purchase Vybes'); return; }
     setPurchasingPackId(packId);
     setPurchaseError(null);
-
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packId, participantId: accountId }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
+      if (!response.ok) throw new Error(data.error || 'Failed to create checkout session');
       window.location.href = data.url;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to start checkout';
       console.error('Purchase error:', err);
-      setPurchaseError(err.message || 'Failed to start checkout');
+      setPurchaseError(message);
       setPurchasingPackId(null);
     }
   };
@@ -113,165 +99,232 @@ export function VybesPage() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const selectedPack = VYBE_PACKS.find(p => p.id === selected)!;
+
   return (
-    <div className="w-full min-h-full">
-      {/* Balance Card */}
-      <div className="bg-gradient-to-br from-vybe-blue to-vybe-purple p-6 rounded-[20px] mb-5 shadow-primary text-white">
-        <div className="text-sm opacity-90 mb-1">Your Balance</div>
-        <div className="text-4xl font-bold flex items-center gap-2">
-          <span>✨</span>
-          <span>{isLoadingBalance ? '...' : vybesBalance}</span>
-          <span className="text-xl opacity-80">Vybes</span>
+    <div className="flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
+      {/* Custom extended header for Vybes — has balance display inline */}
+      <div className="relative shrink-0 overflow-hidden rounded-b-[32px] bg-gradient-header pb-6">
+        <div className="pointer-events-none absolute -top-[60px] -right-10 h-[200px] w-[200px] rounded-full bg-[radial-gradient(circle,rgba(254,197,57,0.12)_0%,transparent_70%)]" />
+        <div className="pointer-events-none absolute bottom-0 -left-5 h-[120px] w-[120px] rounded-full bg-[radial-gradient(circle,rgba(241,69,115,0.1)_0%,transparent_70%)]" />
+
+        <div className="pt-14 pb-2 px-6" />
+
+        <div className="relative mb-4 flex items-start justify-between px-5 pt-1">
+          <div className="flex items-center gap-2.5">
+            <div>
+              <p className="mb-0.5 text-[12px] tracking-[0.4px] text-white/45">Your currency ✨</p>
+              <h1 className="text-[26px] leading-[1.1] font-black text-white">Vybes</h1>
+            </div>
+          </div>
+          <div className="mt-1 flex h-[42px] w-[42px] items-center justify-center rounded-2xl border border-vybe-yellow/25 bg-vybe-yellow/15">
+            <Sparkles size={20} className="fill-vybe-yellow text-vybe-yellow" />
+          </div>
         </div>
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="mt-3 bg-white/20 border-none py-2 px-4 rounded-lg text-white text-[13px] cursor-pointer hover:bg-white/30 transition-colors"
-        >
-          {showHistory ? 'Hide History' : 'View History'}
-        </button>
+
+        <div className="relative px-5">
+          <p className="mb-1.5 text-[10px] font-bold tracking-[1.2px] text-white/40">YOUR BALANCE</p>
+          <div className="mb-5 flex items-end gap-2">
+            <Sparkles size={30} className="fill-vybe-yellow text-vybe-yellow" />
+            <span className="text-[52px] leading-none font-black text-white">
+              {isLoadingBalance ? '…' : vybesBalance}
+            </span>
+            <span className="mb-1.5 text-[20px] font-bold text-vybe-yellow">Vybes</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white/80"
+            >
+              <History size={12} />
+              {showHistory ? 'Hide History' : 'View History'}
+            </button>
+            <button
+              onClick={() => setActivePage('quiz')}
+              className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-vybe-yellow/25 bg-vybe-yellow/15 px-3 py-1.5 text-[12px] font-bold text-vybe-yellow"
+            >
+              <Zap size={11} />
+              Earn Vybes
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Transaction History */}
-      {showHistory && (
-        <div className="bg-white p-4 rounded-2xl mb-5 shadow-card-sm">
-          <h3 className="m-0 mb-3 text-base font-bold text-gray-800">
-            Transaction History
-          </h3>
-          {isLoadingHistory ? (
-            <p className="text-gray-500 text-sm m-0">Loading...</p>
-          ) : transactionHistory.length === 0 ? (
-            <p className="text-gray-500 text-sm m-0">No transactions yet</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {transactionHistory.map((txn: LedgerEntry) => (
-                <div
-                  key={txn.id}
-                  className="flex justify-between items-center py-2.5 border-b border-gray-100"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-gray-800">
-                      {REASON_LABELS[txn.reason] || txn.reason}
+      <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Transaction History */}
+        {showHistory && (
+          <div className="mt-4 mb-4 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
+            <h3 className="m-0 mb-3 text-[13px] font-extrabold text-ink">Transaction History</h3>
+            {isLoadingHistory ? (
+              <p className="text-ink-muted text-[12px] m-0">Loading...</p>
+            ) : transactionHistory.length === 0 ? (
+              <p className="text-ink-muted text-[12px] m-0">No transactions yet</p>
+            ) : (
+              <div className="flex flex-col">
+                {transactionHistory.map((txn: LedgerEntry) => (
+                  <div key={txn.id} className="flex justify-between items-center py-2.5 border-b border-border-light last:border-b-0">
+                    <div>
+                      <div className="text-[13px] font-bold text-ink">{REASON_LABELS[txn.reason] || txn.reason}</div>
+                      <div className="text-[10px] text-ink-muted">{formatDate(txn.createdAt)}</div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {formatDate(txn.createdAt)}
+                    <div className={`text-[13px] font-extrabold ${txn.amount > 0 ? 'text-status-success' : 'text-vybe-red'}`}>
+                      {txn.amount > 0 ? '+' : ''}{txn.amount} ✨
                     </div>
                   </div>
-                  <div className={`text-base font-bold ${
-                    txn.amount > 0 ? 'text-emerald-500' : 'text-red-500'
-                  }`}>
-                    {txn.amount > 0 ? '+' : ''}{txn.amount} ✨
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Purchase Error */}
+        {purchaseError && (
+          <div className="mt-4 rounded-2xl border border-vybe-red/20 bg-tint-pink py-3 px-4 text-[12px] font-bold text-vybe-red">
+            {purchaseError}
+          </div>
+        )}
+
+        {/* Buy Vybe Packs */}
+        <div className="mt-5 mb-3 flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-yellow" />
+          <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-gold">BUY VYBE PACKS</p>
+        </div>
+
+        <div className="mb-5 flex flex-col gap-3">
+          {VYBE_PACKS.map(({ id, name, vybes, price, popular }) => {
+            const isSelected = selected === id;
+            const isPurchasing = purchasingPackId === id;
+
+            return (
+              <button
+                key={id}
+                onClick={() => setSelected(id)}
+                className={`relative flex cursor-pointer items-center justify-between rounded-2xl bg-white px-4 py-4 transition-all ${
+                  isSelected
+                    ? 'border-2 border-vybe-yellow shadow-card-yellow'
+                    : 'border border-border-light shadow-[0_2px_8px_rgba(99,104,140,0.05)]'
+                } ${isPurchasing ? 'opacity-70' : ''}`}
+              >
+                {popular && (
+                  <span className="absolute -top-2.5 right-16 rounded-full bg-vybe-yellow px-2 py-0.5 text-[9px] font-extrabold tracking-[0.5px] text-ink">
+                    POPULAR
+                  </span>
+                )}
+                <div className="text-left">
+                  <p className="text-[15px] font-bold text-ink">{name}</p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
+                    <span className="text-[12px] font-medium text-ink-muted">{vybes} Vybes</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className={`flex h-[40px] w-[58px] items-center justify-center rounded-2xl transition-all ${
+                  isSelected
+                    ? 'bg-gradient-yellow shadow-glow-yellow'
+                    : 'bg-tint-muted'
+                }`}>
+                  <span className={`text-[14px] font-extrabold ${isSelected ? 'text-ink' : 'text-ink-muted'}`}>
+                    ${price}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {/* Purchase Error */}
-      {purchaseError && (
-        <div className="bg-red-100 border border-red-300 rounded-xl py-3 px-4 mb-4 text-red-800 text-sm">
-          {purchaseError}
+        {/* Unlock Pricing */}
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
+          <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">UNLOCK PRICING</p>
         </div>
-      )}
 
-      {/* Vybe Packs */}
-      <h2 className="m-0 mb-4 text-xl font-bold text-gray-800">Buy Vybe Packs</h2>
-      <div className="flex flex-col gap-3 mb-8">
-        {VYBE_PACKS.map(pack => {
-          const isPurchasing = purchasingPackId === pack.id;
-          return (
+        <div className="mb-5 rounded-3xl border border-border-light bg-white p-5 shadow-card-muted">
+          {UNLOCK_PRICING.map(({ label, cost, free }, index) => (
             <div
-              key={pack.id}
-              className={`bg-white p-5 rounded-2xl shadow-card-sm relative transition-opacity ${
-                pack.popular ? 'border-2 border-vybe-blue' : ''
-              } ${isPurchasing ? 'opacity-70' : 'opacity-100'}`}
+              key={label}
+              className={`flex items-center justify-between py-3 ${
+                index < UNLOCK_PRICING.length - 1 ? 'border-b border-border-light' : ''
+              }`}
             >
-              {pack.popular && (
-                <div className="absolute -top-2.5 right-5 bg-gradient-to-br from-vybe-blue to-vybe-purple text-white py-1 px-3 rounded-xl text-[11px] font-bold">
-                  POPULAR
+              <div className="flex items-center gap-2">
+                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                  free ? 'bg-tint-green' : 'bg-tint-muted'
+                }`}>
+                  <Lock size={11} className={free ? 'text-status-success-dark' : 'text-ink-muted'} />
+                </div>
+                <span className="text-[13px] text-ink">{label}</span>
+              </div>
+              {free ? (
+                <span className="rounded-full bg-tint-green px-2.5 py-1 text-[11px] font-bold text-status-success-dark">Free</span>
+              ) : (
+                <div className="flex items-center gap-1 rounded-full bg-tint-yellow px-2.5 py-1">
+                  <span className="text-[13px] font-extrabold text-vybe-gold">{cost}</span>
+                  <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
                 </div>
               )}
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-lg font-bold text-gray-800 mb-1">
-                    {pack.name}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    ✨ {pack.vybes} Vybes
-                  </div>
-                </div>
-                <button
-                  className="py-3 px-6 text-[15px] border-none rounded-xl cursor-pointer font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-gradient-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => handlePurchase(pack.id)}
-                  disabled={isPurchasing || purchasingPackId !== null}
-                >
-                  {isPurchasing ? 'Loading...' : `$${pack.price}`}
-                </button>
-              </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
 
-      {/* Pricing Info */}
-      <div className="bg-gray-50 p-5 rounded-2xl mb-5">
-        <h3 className="m-0 mb-3 text-base font-bold text-gray-800">
-          Unlock Pricing
-        </h3>
-        <div className="flex flex-col gap-2 text-sm">
-          <div className="flex justify-between text-gray-500">
-            <span>Preview Matches</span>
-            <span className="text-emerald-500 font-semibold">Free</span>
-          </div>
-          <div className="flex justify-between text-gray-500">
-            <span>Top 3 Matches</span>
-            <span className="font-semibold">2 ✨</span>
-          </div>
-          <div className="flex justify-between text-gray-500">
-            <span>All Matches</span>
-            <span className="font-semibold">5 ✨</span>
-          </div>
-          <div className="flex justify-between text-gray-500">
-            <span>Extended Questions (10)</span>
-            <span className="font-semibold">3 ✨</span>
+        {/* What are Vybes? */}
+        <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-yellow/15 bg-gradient-dark p-5">
+          <div className="pointer-events-none absolute -top-5 -right-2.5 h-[100px] w-[100px] rounded-full bg-[radial-gradient(circle,rgba(254,197,57,0.1)_0%,transparent_70%)]" />
+          <div className="relative">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-vybe-yellow">
+                <Sparkles size={14} className="text-ink" />
+              </div>
+              <span className="text-[12px] font-extrabold tracking-[0.5px] text-vybe-yellow">WHAT ARE VYBES?</span>
+            </div>
+            <p className="mb-2.5 text-[13px] leading-[1.7] text-white/70">
+              Vybes unlock premium features — view detailed match results, access deeper analytics, and reveal who truly
+              resonates with you. New users get <span className="font-bold text-vybe-yellow">10 free Vybes</span> to start!
+            </p>
+            <button
+              onClick={() => setActivePage('quiz')}
+              className="flex cursor-pointer items-center gap-1 border-0 bg-transparent"
+            >
+              <span className="text-[12px] font-bold text-vybe-yellow">How to earn Vybes</span>
+              <ChevronRight size={13} className="text-vybe-yellow" />
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* What are Vybes? */}
-      <div className="bg-gray-50 p-5 rounded-2xl">
-        <h3 className="m-0 mb-3 text-base font-bold text-gray-800">
-          What are Vybes?
-        </h3>
-        <p className="m-0 text-sm text-gray-500 leading-relaxed">
-          Vybes are used to unlock premium features like viewing detailed match results,
-          accessing exclusive visualizations, and more. New participants receive 10 free Vybes!
-        </p>
-      </div>
-
-      {/* FOR DEVELOPMENT ONLY — comment out in prod */}
-      <div className="mt-8 pt-4 border-t border-dashed border-gray-300">
+        {/* Buy Button */}
         <button
-          onClick={() => {
-            // Preserve AI cache keys (they cost money to generate)
-            const aiCacheEntries: [string, string][] = [];
-            for (let i = 0; i < localStorage.length; i++) {
-              const key = localStorage.key(i);
-              if (key?.startsWith('vybecheck_ai_cache_')) {
-                aiCacheEntries.push([key, localStorage.getItem(key)!]);
-              }
-            }
-            localStorage.clear();
-            aiCacheEntries.forEach(([k, v]) => localStorage.setItem(k, v));
-            window.location.reload();
-          }}
-          className="w-full py-2 px-4 bg-red-100 text-red-600 border border-red-300 rounded-lg text-xs font-mono cursor-pointer"
+          onClick={() => handlePurchase(selected)}
+          disabled={purchasingPackId !== null}
+          className="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-yellow py-4 text-[15px] font-extrabold text-ink shadow-glow-yellow-lg disabled:opacity-50"
         >
-          🧹 DEV: Clear localStorage & Reload (preserves AI cache)
+          <Sparkles size={18} className="text-ink" />
+          {purchasingPackId ? 'Loading...' : `Buy ${selectedPack.name} — $${selectedPack.price}`}
         </button>
+
+        <p className="mb-1 text-center text-[11px] text-ink-muted">
+          🔒 Secure one-time purchase · No subscription
+        </p>
+
+        {/* DEV ONLY */}
+        <div className="mt-8 pt-4 border-t border-dashed border-border-light">
+          <button
+            onClick={() => {
+              const aiCacheEntries: [string, string][] = [];
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith('vybecheck_ai_cache_')) {
+                  aiCacheEntries.push([key, localStorage.getItem(key)!]);
+                }
+              }
+              localStorage.clear();
+              aiCacheEntries.forEach(([k, v]) => localStorage.setItem(k, v));
+              window.location.reload();
+            }}
+            className="w-full py-2 px-4 bg-tint-pink text-vybe-red border border-vybe-red/20 rounded-xl text-[11px] font-mono cursor-pointer"
+          >
+            🧹 DEV: Clear localStorage & Reload (preserves AI cache)
+          </button>
+        </div>
       </div>
-      {/* END DEV ONLY */}
     </div>
   );
 }

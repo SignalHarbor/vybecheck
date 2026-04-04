@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+import { Mic, ChevronDown, X, Send, Trash2, FlaskConical, Radio } from 'lucide-react';
 import { useDraftStore } from '../store/draftStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
 import { useQuizStore } from '../store/quizStore';
 import { useAuthStore } from '../store/authStore';
+import { Header } from '../components/Header';
 import { DraftQuestionCard } from '../components/DraftQuestionCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { GeneratedQuestion } from '../../server/services/QuestionGeneratorService';
 
-// TODO: Move this to config or constants file
 const QUESTION_LIMIT_UPGRADE_COST = 3;
 const DEFAULT_QUESTION_LIMIT = 3;
 
@@ -38,7 +39,6 @@ export function LabPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState('');
 
-  // Fetch test audio files when AI section opens
   useEffect(() => {
     if (showAISection && testFiles.length === 0) {
       fetch('/api/ai/test-files')
@@ -48,29 +48,19 @@ export function LabPage() {
     }
   }, [showAISection]);
 
-  // Check if session is active (has sessionId and quizState)
   const hasActiveSession = Boolean(sessionId && quizState);
 
-  // Watch for session creation to auto-publish drafts
   useEffect(() => {
     if (pendingPublish && sessionId && sessionId !== prevSessionIdRef.current) {
-      // Session was just created, publish the drafts
       const questionsToPublish = [...draftQuestions];
-
-      // Auto-upgrade if needed (unlock is processed before adds on server)
       if (pendingNeedsUpgrade) {
         send({ type: 'question:unlock-limit' });
         setPendingNeedsUpgrade(false);
       }
-
       questionsToPublish.forEach(draft => {
         send({
           type: 'question:add',
-          data: {
-            prompt: draft.prompt,
-            options: draft.options,
-            ownerResponse: draft.ownerResponse
-          }
+          data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse }
         });
       });
       clearDrafts();
@@ -85,12 +75,10 @@ export function LabPage() {
       showError('Please fill in all fields');
       return;
     }
-
     if (!ownerResponse) {
       showError('Please select your answer to this question');
       return;
     }
-
     addDraft(questionPrompt, [option1, option2], ownerResponse);
     setQuestionPrompt('');
     setOption1('');
@@ -99,95 +87,57 @@ export function LabPage() {
     showNotification('Question added to drafts');
   };
 
+  const questionLimit = quizState?.questionLimit ?? getQuestionLimit();
+  const publishedQuestionsCount = hasActiveSession ? (quizState?.questions.length ?? 0) : 0;
+  const totalQuestionsCount = publishedQuestionsCount + draftQuestions.length;
+  const hasReachedLimit = totalQuestionsCount >= questionLimit;
+  const canAffordUpgrade = vybesBalance >= QUESTION_LIMIT_UPGRADE_COST;
+  const hasUpgraded = hasUpgradedQuestionLimit();
+
   const needsUpgradeForPublish = () => {
     const availableSlots = questionLimit - publishedQuestionsCount;
     return draftQuestions.length > availableSlots && !hasUpgraded;
   };
 
   const publishDraftQuestions = () => {
-    // Check if all drafts have owner responses
     const unansweredDrafts = draftQuestions.filter(q => !q.ownerResponse);
     if (unansweredDrafts.length > 0) {
       showError(`Please answer all questions before publishing (${unansweredDrafts.length} unanswered)`);
       return;
     }
-
-    // Check if upgrade is needed
     const needsUpgrade = draftQuestions.length > DEFAULT_QUESTION_LIMIT - publishedQuestionsCount && !hasUpgraded;
-
-    // If no active session, show create session dialog (upgrade handled in create flow)
     if (!hasActiveSession) {
-      if (needsUpgrade) {
-        setShowUpgradeDialog(true);
-      } else {
-        setShowCreateSessionDialog(true);
-      }
+      if (needsUpgrade) { setShowUpgradeDialog(true); } else { setShowCreateSessionDialog(true); }
       return;
     }
-
-    // In active session, check if upgrade needed
-    if (needsUpgrade) {
-      setShowUpgradeDialog(true);
-      return;
-    }
-
+    if (needsUpgrade) { setShowUpgradeDialog(true); return; }
     setShowPublishDialog(true);
   };
 
   const confirmPublish = () => {
-    // Store draft questions with responses before clearing
     const questionsToPublish = [...draftQuestions];
-
-    // Clear drafts and close dialog immediately for better UX
     clearDrafts();
     setShowPublishDialog(false);
     showNotification(`Publishing ${questionsToPublish.length} question${questionsToPublish.length !== 1 ? 's' : ''}...`);
-
-    // Send all draft questions to server
     questionsToPublish.forEach(draft => {
-      send({
-        type: 'question:add',
-        data: {
-          prompt: draft.prompt,
-          options: draft.options,
-          ownerResponse: draft.ownerResponse
-        }
-      });
+      send({ type: 'question:add', data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse } });
     });
   };
 
   const confirmUpgradeAndPublish = () => {
-    // If user can't afford, redirect to Vybes page to purchase
-    if (!canAffordUpgrade) {
-      setShowUpgradeDialog(false);
-      setActivePage('vybes');
-      return;
-    }
-
+    if (!canAffordUpgrade) { setShowUpgradeDialog(false); setActivePage('vybes'); return; }
     setShowUpgradeDialog(false);
     const questionsToPublish = [...draftQuestions];
-
     if (!hasActiveSession) {
-      // Need to create session first, then upgrade, then publish
       setPendingNeedsUpgrade(true);
       setPendingPublish(true);
       send({ type: 'session:create', data: { username: twitterUsername || undefined } });
     } else {
-      // Already in session — upgrade then publish immediately
       send({ type: 'question:unlock-limit' });
-
       clearDrafts();
       showNotification(`Upgrading limit and publishing ${questionsToPublish.length} question(s)...`);
-
       questionsToPublish.forEach(draft => {
-        send({
-          type: 'question:add',
-          data: {
-            prompt: draft.prompt,
-            options: draft.options,
-            ownerResponse: draft.ownerResponse
-          }
-        });
+        send({ type: 'question:add', data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse } });
       });
     }
   };
@@ -198,14 +148,6 @@ export function LabPage() {
     send({ type: 'session:create', data: { username: twitterUsername || undefined } });
   };
 
-  // Question limit: use server-authoritative value when in a session, fallback to client
-  const questionLimit = quizState?.questionLimit ?? getQuestionLimit();
-  const publishedQuestionsCount = hasActiveSession ? (quizState?.questions.length ?? 0) : 0;
-  const totalQuestionsCount = publishedQuestionsCount + draftQuestions.length;
-  const hasReachedLimit = totalQuestionsCount >= questionLimit;
-  const canAffordUpgrade = vybesBalance >= QUESTION_LIMIT_UPGRADE_COST;
-  const hasUpgraded = hasUpgradedQuestionLimit();
-
   const handleUnlockQuestionLimit = () => {
     if (!canAffordUpgrade) {
       showError(`Not enough Vybes! Need ${QUESTION_LIMIT_UPGRADE_COST}, have ${vybesBalance}`);
@@ -213,57 +155,35 @@ export function LabPage() {
     }
     setIsUnlocking(true);
     send({ type: 'question:unlock-limit' });
-    // isUnlocking will be reset when we receive question:limit-unlocked or error
-    setTimeout(() => setIsUnlocking(false), 3000); // Fallback reset
+    setTimeout(() => setIsUnlocking(false), 3000);
   };
 
   const AI_CACHE_PREFIX = 'vybecheck_ai_cache_';
 
   const handleAIGenerate = async () => {
-    if (!selectedFile) {
-      showError('Please select a test audio file');
-      return;
-    }
-
+    if (!selectedFile) { showError('Please select a test audio file'); return; }
     setIsGenerating(true);
-
     try {
-      // Check localStorage cache first
       const cacheKey = `${AI_CACHE_PREFIX}${selectedFile}`;
       const cached = localStorage.getItem(cacheKey);
-
       let data: { questions: GeneratedQuestion[]; transcript: string };
-
       if (cached) {
         setGenerationStatus('Using cached questions...');
-        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+        await new Promise(resolve => setTimeout(resolve, 500));
         data = JSON.parse(cached);
       } else {
         setGenerationStatus('Transcribing audio (this may take a moment)...');
-
         const res = await fetch('/api/ai/generate-from-test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: selectedFile, count: 5 }),
         });
-
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || 'Generation failed');
-        }
-
+        if (!res.ok) { const errData = await res.json(); throw new Error(errData.error || 'Generation failed'); }
         setGenerationStatus('Generating questions...');
         data = await res.json();
-
-        // Cache the result
         localStorage.setItem(cacheKey, JSON.stringify(data));
       }
-
-      // Add generated questions to drafts
-      for (const q of data.questions) {
-        addDraft(q.prompt, q.options, undefined, true);
-      }
-
+      for (const q of data.questions) { addDraft(q.prompt, q.options, undefined, true); }
       const source = cached ? '(cached)' : '(new)';
       showNotification(`Generated ${data.questions.length} questions ${source}`);
       setShowAISection(false);
@@ -276,47 +196,71 @@ export function LabPage() {
     }
   };
 
-  return (
-    <div className="w-full min-h-full">
-      {/* Session Status Banner */}
+  // Header pills
+  const headerPills = (
+    <>
       {hasActiveSession ? (
-        <div className="py-3 px-4 mb-4 bg-emerald-50 rounded-lg border border-emerald-200 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-base">🟢</span>
-            <span className="text-sm font-semibold text-emerald-800">Live Session</span>
-          </div>
-          <span className="text-xs text-emerald-700 font-mono">
-            {sessionId}
-          </span>
+        <div className="flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/15 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-status-success" />
+          <span className="text-[11px] font-bold text-status-success">Live</span>
         </div>
       ) : (
-        <div className="py-3 px-4 mb-4 bg-amber-100 rounded-lg border border-amber-300 flex items-center gap-2">
-          <span className="text-base">✏️</span>
-          <span className="text-sm font-medium text-amber-800">
-            Draft Mode — Create questions offline, publish when ready
-          </span>
+        <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-vybe-yellow" />
+          <span className="text-[11px] font-bold text-vybe-yellow">Draft Mode</span>
         </div>
       )}
+      {draftQuestions.length > 0 && (
+        <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
+          <span className="text-[11px] text-white/55">{draftQuestions.length} draft{draftQuestions.length !== 1 ? 's' : ''}</span>
+        </div>
+      )}
+      {hasActiveSession && (
+        <div className="ml-auto flex items-center gap-1 rounded-full bg-white/7 px-2.5 py-1">
+          <Radio size={10} className="text-white/40" />
+          <span className="font-mono text-[10px] text-white/40">{sessionId?.slice(0, 8)}…</span>
+        </div>
+      )}
+    </>
+  );
 
-      {/* AI Generate from Audio */}
-      <div className="mb-4">
+  return (
+    <div className="relative flex h-full flex-col bg-surface-page font-sans">
+      <Header
+        title="Lab"
+        subtitle="Host your session ✨"
+        actionIcon={<FlaskConical size={13} />}
+        actionColor="muted"
+        pills={headerPills}
+      />
+
+      <div className={`flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        draftQuestions.length > 0 && hasActiveSession ? 'pb-[100px]' : 'pb-6'
+      }`}>
+        {/* AI Generate from Audio */}
         <button
           onClick={() => setShowAISection(!showAISection)}
-          className="w-full py-3 px-4 bg-white rounded-lg border border-gray-200 shadow-sm cursor-pointer text-left flex justify-between items-center"
+          className="mt-4 mb-3 flex w-full cursor-pointer items-center justify-between rounded-2xl border border-border-light bg-white px-4 py-3 shadow-[0_2px_8px_rgba(99,104,140,0.05)]"
         >
-          <span className="text-sm font-semibold text-gray-800">🤖 Generate Questions from Audio</span>
-          <span className="text-gray-400">{showAISection ? '▲' : '▼'}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
+              <Mic size={14} className="text-vybe-blue" />
+            </div>
+            <span className="text-[13px] font-semibold text-ink">Generate Questions from Audio</span>
+          </div>
+          <ChevronDown size={16} className={`text-ink-muted transition-transform ${showAISection ? 'rotate-180' : ''}`} />
         </button>
+
         {showAISection && (
-          <div className="mt-2 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 mb-3">
+          <div className="mb-3 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white p-4 shadow-[0_4px_16px_rgba(83,157,192,0.07)]">
+            <p className="mb-3 text-[12px] leading-[1.6] text-ink-muted">
               Select a test audio file to generate quiz questions using AI.
             </p>
             <select
               value={selectedFile}
               onChange={(e) => setSelectedFile(e.target.value)}
               disabled={isGenerating}
-              className="w-full mb-3 text-sm py-2.5 px-3 rounded-lg border border-gray-200 bg-white"
+              className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
             >
               <option value="">Select audio file...</option>
               {testFiles.map(f => {
@@ -329,131 +273,151 @@ export function LabPage() {
               })}
             </select>
             {generationStatus && (
-              <p className="text-xs text-indigo-600 mb-3 animate-pulse">
-                {generationStatus}
-              </p>
+              <p className="text-[11px] text-vybe-blue mb-3 animate-pulse font-bold">{generationStatus}</p>
             )}
             <button
               onClick={handleAIGenerate}
               disabled={!selectedFile || isGenerating}
-              className={`w-full py-3 px-4 border-none rounded-xl cursor-pointer text-sm font-semibold transition-all ${
+              className={`mt-1 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 py-2.5 text-[13px] font-bold transition-all ${
                 !selectedFile || isGenerating
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-linear-to-br from-vybe-blue to-vybe-purple text-white'
+                  ? 'bg-tint-muted text-ink-muted cursor-not-allowed'
+                  : 'bg-gradient-blue text-white shadow-glow-blue'
               }`}
             >
-              {isGenerating ? 'Generating...' : '🎙️ Generate Questions'}
+              <Mic size={13} />
+              {isGenerating ? 'Generating...' : 'Generate Questions'}
             </button>
           </div>
         )}
-      </div>
 
-      {/* Session Question Stats - only show when in a session */}
-      {hasActiveSession && (
-        <div className="py-4 px-5 mb-4 rounded-lg border bg-indigo-50 border-indigo-200">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-semibold text-indigo-700">
-              📊 Questions in Session
-            </span>
-            <span className="text-lg font-bold text-indigo-700">
-              {publishedQuestionsCount} / {questionLimit}
-            </span>
-          </div>
+        {/* Add Question section label */}
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
+          <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">ADD QUESTION</p>
         </div>
-      )}
 
-      <div className="bg-white p-5 rounded-[20px] mb-5 shadow-card">
-        <h2 className="mt-0 mb-4 text-gray-800 text-xl font-bold">Add Question</h2>
-        <input
-          type="text"
-          placeholder="Question prompt"
-          value={questionPrompt}
-          onChange={(e) => setQuestionPrompt(e.target.value)}
-          className="w-full mb-3"
-        />
-        <input
-          type="text"
-          placeholder="Option 1"
-          value={option1}
-          onChange={(e) => setOption1(e.target.value)}
-          className="w-full mb-3"
-        />
-        <input
-          type="text"
-          placeholder="Option 2"
-          value={option2}
-          onChange={(e) => setOption2(e.target.value)}
-          className="w-full mb-3"
-        />
+        <div className="mb-5 rounded-3xl border-[1.5px] border-border-light bg-white p-5 shadow-card-muted">
+          <textarea
+            value={questionPrompt}
+            onChange={(e) => setQuestionPrompt(e.target.value)}
+            placeholder="Ask something worth answering…"
+            rows={3}
+            className="mb-2 box-border w-full resize-none rounded-xl border border-border-light bg-surface-page px-[14px] py-[10px] text-[14px] leading-[1.5] text-ink outline-none placeholder:text-ink-muted"
+          />
 
-        {/* Owner Response Selection */}
-        {option1 && option2 && (
-          <div className="mt-4 mb-3">
-            <label className="block mb-2 text-sm font-semibold text-gray-800">
-              Your Answer:
-            </label>
-            <div className="flex gap-3">
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <input
+              value={option1}
+              onChange={(e) => setOption1(e.target.value)}
+              placeholder="Option A"
+              className="box-border rounded-xl border border-border-light bg-surface-page px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+            />
+            <input
+              value={option2}
+              onChange={(e) => setOption2(e.target.value)}
+              placeholder="Option B"
+              className="box-border rounded-xl border border-border-light bg-surface-page px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+            />
+          </div>
+
+          {/* Owner Response Selection */}
+          {option1 && option2 && (
+            <div className="mb-3">
+              <label className="block mb-2 text-[12px] font-bold text-ink-muted">Your Answer:</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[option1, option2].map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => setOwnerResponseState(opt)}
+                    className={`rounded-xl py-3 px-3 text-center text-[13px] font-semibold transition-all cursor-pointer ${
+                      ownerResponse === opt
+                        ? 'border-2 border-status-success bg-tint-green text-status-success-dark'
+                        : 'border border-border-light bg-surface-page text-ink'
+                    }`}
+                  >
+                    {opt}{ownerResponse === opt && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={addQuestionToDraft}
+            className={`w-full rounded-2xl border-0 py-3 text-[14px] font-bold transition-all ${
+              questionPrompt.trim()
+                ? 'cursor-pointer bg-gradient-muted text-white shadow-glow-muted'
+                : 'cursor-not-allowed bg-tint-muted text-ink-muted'
+            }`}
+          >
+            + Add to Drafts
+          </button>
+        </div>
+
+        {/* Draft Questions */}
+        {draftQuestions.length === 0 ? (
+          <div className="flex flex-col items-center py-10 opacity-40">
+            <FlaskConical size={32} strokeWidth={1.5} className="text-ink-muted" />
+            <p className="mt-2.5 text-[13px] font-semibold text-ink-muted">
+              Create questions above to add to your drafts
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">
+                  DRAFT QUESTIONS ({draftQuestions.length})
+                </p>
+              </div>
+              {hasActiveSession && (
+                <button
+                  onClick={publishDraftQuestions}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-vybe-red/20 bg-tint-pink px-3 py-1.5 text-[12px] font-bold text-vybe-red"
+                >
+                  <Send size={12} />
+                  Publish All
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {draftQuestions.map((draft, index) => (
+                <DraftQuestionCard
+                  key={draft.id}
+                  draft={draft}
+                  index={index}
+                  onRemove={removeDraft}
+                  onSetOwnerResponse={setOwnerResponse}
+                />
+              ))}
+
               <button
-                onClick={() => setOwnerResponseState(option1)}
-                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
-                  ownerResponse === option1
-                    ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
-                    : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                }`}
+                onClick={() => clearDrafts()}
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-tint-pink bg-white py-2.5 text-[13px] font-semibold text-vybe-red"
               >
-                {option1}
-                {ownerResponse === option1 && ' ✓'}
-              </button>
-              <button
-                onClick={() => setOwnerResponseState(option2)}
-                className={`flex-1 py-4 px-6 border-2 rounded-xl cursor-pointer text-[17px] font-medium transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation active:scale-[0.97] ${
-                  ownerResponse === option2
-                    ? 'bg-linear-to-br from-emerald-500 to-emerald-600 text-white border-emerald-500 shadow-emerald'
-                    : 'bg-white text-gray-800 border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'
-                }`}
-              >
-                {option2}
-                {ownerResponse === option2 && ' ✓'}
+                <Trash2 size={14} />
+                Clear all drafts
               </button>
             </div>
-          </div>
+          </>
         )}
 
-        <button
-          onClick={addQuestionToDraft}
-          className="w-full py-4 px-6 border-2 border-gray-200 rounded-xl cursor-pointer text-[17px] font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-white text-vybe-blue shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:bg-gray-50 active:scale-[0.97]"
-        >
-          + Add to Drafts
-        </button>
+        <div className="h-2" />
       </div>
 
-      {draftQuestions.length > 0 && (
-        <div className="mb-5">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-gray-800 text-xl font-bold m-0">Draft Questions ({draftQuestions.length})</h2>
-            <button
-              onClick={publishDraftQuestions}
-              className="py-2.5 px-5 text-[15px] border-none rounded-xl cursor-pointer font-semibold transition-all text-center select-none [-webkit-tap-highlight-color:transparent] touch-manipulation bg-linear-to-br from-vybe-blue to-vybe-purple text-white shadow-primary active:scale-[0.97]"
-            >
-              Publish All
-            </button>
-          </div>
-          {draftQuestions.map((draft, index) => (
-            <DraftQuestionCard
-              key={draft.id}
-              draft={draft}
-              index={index}
-              onRemove={removeDraft}
-              onSetOwnerResponse={setOwnerResponse}
-            />
-          ))}
+      {/* Floating publish button */}
+      {hasActiveSession && draftQuestions.length > 0 && (
+        <div className="absolute right-4 bottom-[80px] z-20">
+          <button
+            onClick={publishDraftQuestions}
+            className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border-0 bg-gradient-red px-5 py-[13px] text-[13px] font-extrabold text-white shadow-glow-red-lg"
+          >
+            <Send size={15} />
+            Publish {draftQuestions.length} Question{draftQuestions.length !== 1 ? 's' : ''}
+          </button>
         </div>
-      )}
-
-      {draftQuestions.length === 0 && (
-        <p className="text-center text-gray-500 py-10 px-5">
-          ✏️ Create questions above to add to your drafts
-        </p>
       )}
 
       <ConfirmDialog
@@ -464,7 +428,6 @@ export function LabPage() {
         onCancel={() => setShowPublishDialog(false)}
         confirmText="Publish"
       />
-
       <ConfirmDialog
         isOpen={showCreateSessionDialog}
         title="Create New Session?"
@@ -473,7 +436,6 @@ export function LabPage() {
         onCancel={() => setShowCreateSessionDialog(false)}
         confirmText="Create & Publish"
       />
-
       <ConfirmDialog
         isOpen={showUpgradeDialog}
         title="Upgrade Required"
@@ -482,7 +444,6 @@ export function LabPage() {
         onCancel={() => setShowUpgradeDialog(false)}
         confirmText={vybesBalance >= QUESTION_LIMIT_UPGRADE_COST ? `Upgrade & Publish (${QUESTION_LIMIT_UPGRADE_COST} ✨)` : 'Get Vybes →'}
       />
-
     </div>
   );
 }

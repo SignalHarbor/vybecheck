@@ -14,10 +14,10 @@
   }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #0F0E1A;
     overscroll-behavior: none;
   }
 
@@ -29,19 +29,25 @@
   }
 
   /* Base input styles */
-  input {
-    padding: 1rem;
-    border: 2px solid #e5e7eb;
+  input, textarea, select {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #E6EAF2;
     border-radius: 0.75rem;
-    font-size: 1rem;
-    background: white;
+    font-size: 0.8125rem;
+    background: #F7F8FC;
     transition: all 0.2s;
     font-weight: 500;
+    color: #1A1A2E;
+    font-family: inherit;
   }
 
-  input:focus {
+  input::placeholder, textarea::placeholder {
+    color: #63688C;
+  }
+
+  input:focus, textarea:focus, select:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    border-color: #539DC0;
+    box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.12);
   }
 }
