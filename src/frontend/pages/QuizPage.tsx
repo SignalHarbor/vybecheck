@@ -122,7 +122,7 @@ export function QuizPage() {
         />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="relative mt-4 mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
+          <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
             <div className="pointer-events-none absolute -top-[30px] -right-5 h-[110px] w-[110px] rounded-full bg-[radial-gradient(circle,rgba(83,157,192,0.1)_0%,transparent_70%)]" />
             <div className="relative">
               <div className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-2xl bg-tint-blue">
@@ -228,7 +228,7 @@ export function QuizPage() {
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Progress Bar */}
-        <div className="mt-4 mb-4 flex flex-col gap-2">
+        <div className="mb-4 flex flex-col gap-2">
           <div className="flex justify-between items-center">
             <span className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">QUESTION {currentQuestionIndex + 1} OF {totalQuestions}</span>
             <span className="text-[12px] font-bold text-vybe-blue">{progressPercentage}%</span>

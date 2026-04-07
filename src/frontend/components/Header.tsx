@@ -35,7 +35,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
   };
 
   return (
-    <header className="shrink-0 rounded-b-[28px] bg-gradient-header pb-5">
+    <header className="shrink-0 rounded-b-[28px] bg-gradient-header pb-5 mb-6">
       {/* Safe-area spacer */}
       <div className="pt-14 pb-2 px-6" />
 

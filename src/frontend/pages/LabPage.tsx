@@ -239,7 +239,7 @@ export function LabPage() {
           <>
             <button
               onClick={() => setShowAISection(!showAISection)}
-              className="mt-4 mb-3 flex w-full cursor-pointer items-center justify-between rounded-2xl border border-border-light bg-white px-4 py-3 shadow-[0_2px_8px_rgba(99,104,140,0.05)]"
+              className="mb-3 flex w-full cursor-pointer items-center justify-between rounded-2xl border border-border-light bg-white px-4 py-3 shadow-[0_2px_8px_rgba(99,104,140,0.05)]"
             >
               <div className="flex items-center gap-2.5">
                 <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">

@@ -140,7 +140,7 @@ export function VybesPage() {
   return (
     <div className="flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       {/* Custom extended header for Vybes — has balance display inline */}
-      <div className="relative shrink-0 overflow-hidden rounded-b-[32px] bg-gradient-header pb-6">
+      <div className="relative shrink-0 overflow-hidden rounded-b-[32px] bg-gradient-header pb-6 mb-6">
         <div className="pointer-events-none absolute -top-[60px] -right-10 h-[200px] w-[200px] rounded-full bg-[radial-gradient(circle,rgba(254,197,57,0.12)_0%,transparent_70%)]" />
         <div className="pointer-events-none absolute bottom-0 -left-5 h-[120px] w-[120px] rounded-full bg-[radial-gradient(circle,rgba(241,69,115,0.1)_0%,transparent_70%)]" />
 
@@ -190,7 +190,7 @@ export function VybesPage() {
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Transaction History */}
         {showHistory && (
-          <div className="mt-4 mb-4 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
+          <div className="mb-4 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
             <h3 className="m-0 mb-3 text-[13px] font-extrabold text-ink">Transaction History</h3>
             {isLoadingHistory ? (
               <p className="text-ink-muted text-[12px] m-0">Loading...</p>
@@ -216,7 +216,7 @@ export function VybesPage() {
 
         {/* Purchase Error */}
         {purchaseError && (
-          <div className="mt-4 rounded-2xl border border-vybe-red/20 bg-tint-pink py-3 px-4 text-[12px] font-bold text-vybe-red">
+          <div className="mb-4 rounded-2xl border border-vybe-red/20 bg-tint-pink py-3 px-4 text-[12px] font-bold text-vybe-red">
             {purchaseError}
           </div>
         )}
@@ -224,7 +224,7 @@ export function VybesPage() {
         {enablePayments && (
           <>
             {/* Buy Vybe Packs */}
-            <div className="mt-5 mb-3 flex items-center gap-2">
+            <div className="mb-3 flex items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-yellow" />
               <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-gold">BUY VYBE PACKS</p>
             </div>
@@ -355,7 +355,7 @@ export function VybesPage() {
               <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-blue" />
               <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-blue">ADMIN: ISSUE VYBES</p>
             </div>
-            
+
             <input
               type="text"
               placeholder="Participant ID (e.g. @username)"
@@ -384,7 +384,7 @@ export function VybesPage() {
         )}
 
         {/* DEV ONLY */}
-        <div className="mt-8 pt-4 border-t border-dashed border-border-light">
+        {/* <div className="mt-8 pt-4 border-t border-dashed border-border-light">
           <button
             onClick={() => {
               const aiCacheEntries: [string, string][] = [];
@@ -402,7 +402,7 @@ export function VybesPage() {
           >
             🧹 DEV: Clear localStorage & Reload (preserves AI cache)
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );

@@ -74,7 +74,7 @@ export function LobbyPage() {
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Session code join */}
-          <div className="mt-4 mb-4 flex items-center gap-2.5 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white px-4 py-3">
+          <div className="mb-4 flex items-center gap-2.5 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white px-4 py-3">
             <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
               <span className="text-[13px]">🔑</span>
             </div>
@@ -208,7 +208,7 @@ export function LobbyPage() {
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Session ID Card */}
-        <div className="mt-4 mb-4 rounded-2xl border border-border-light bg-white p-4 shadow-card-muted">
+        <div className="mb-4 rounded-2xl border border-border-light bg-white p-4 shadow-card-muted">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
