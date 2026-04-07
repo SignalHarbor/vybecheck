@@ -87,7 +87,8 @@ export type TransactionReason =
   | 'PURCHASE_VYBES'
   | 'UNLOCK_MATCH_TOP3'
   | 'UNLOCK_MATCH_ALL'
-  | 'UNLOCK_QUESTION_LIMIT';
+  | 'UNLOCK_QUESTION_LIMIT'
+  | 'ADMIN_ISSUED';
 
 export interface VybeTransaction {
   participantId: string;

@@ -8,12 +8,14 @@ import { useAuthStore } from '../store/authStore';
 import { Header } from '../components/Header';
 import { DraftQuestionCard } from '../components/DraftQuestionCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useFeatures } from '../utils/features';
 import type { GeneratedQuestion } from '../../server/services/QuestionGeneratorService';
 
 const QUESTION_LIMIT_UPGRADE_COST = 3;
 const DEFAULT_QUESTION_LIMIT = 3;
 
 export function LabPage() {
+  const { enableAIGeneration } = useFeatures();
   const { draftQuestions, addDraft, removeDraft, clearDrafts, setOwnerResponse } = useDraftStore();
   const { send } = useWebSocketStore();
   const { showNotification, showError, setActivePage } = useUIStore();
@@ -233,56 +235,60 @@ export function LabPage() {
         draftQuestions.length > 0 && hasActiveSession ? 'pb-[100px]' : 'pb-6'
       }`}>
         {/* AI Generate from Audio */}
-        <button
-          onClick={() => setShowAISection(!showAISection)}
-          className="mt-4 mb-3 flex w-full cursor-pointer items-center justify-between rounded-2xl border border-border-light bg-white px-4 py-3 shadow-[0_2px_8px_rgba(99,104,140,0.05)]"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
-              <Mic size={14} className="text-vybe-blue" />
-            </div>
-            <span className="text-[13px] font-semibold text-ink">Generate Questions from Audio</span>
-          </div>
-          <ChevronDown size={16} className={`text-ink-muted transition-transform ${showAISection ? 'rotate-180' : ''}`} />
-        </button>
-
-        {showAISection && (
-          <div className="mb-3 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white p-4 shadow-[0_4px_16px_rgba(83,157,192,0.07)]">
-            <p className="mb-3 text-[12px] leading-[1.6] text-ink-muted">
-              Select a test audio file to generate quiz questions using AI.
-            </p>
-            <select
-              value={selectedFile}
-              onChange={(e) => setSelectedFile(e.target.value)}
-              disabled={isGenerating}
-              className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
-            >
-              <option value="">Select audio file...</option>
-              {testFiles.map(f => {
-                const isCached = Boolean(localStorage.getItem(`${AI_CACHE_PREFIX}${f}`));
-                return (
-                  <option key={f} value={f}>
-                    {f}{isCached ? ' ✓ cached' : ''}
-                  </option>
-                );
-              })}
-            </select>
-            {generationStatus && (
-              <p className="text-[11px] text-vybe-blue mb-3 animate-pulse font-bold">{generationStatus}</p>
-            )}
+        {enableAIGeneration && (
+          <>
             <button
-              onClick={handleAIGenerate}
-              disabled={!selectedFile || isGenerating}
-              className={`mt-1 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 py-2.5 text-[13px] font-bold transition-all ${
-                !selectedFile || isGenerating
-                  ? 'bg-tint-muted text-ink-muted cursor-not-allowed'
-                  : 'bg-gradient-blue text-white shadow-glow-blue'
-              }`}
+              onClick={() => setShowAISection(!showAISection)}
+              className="mt-4 mb-3 flex w-full cursor-pointer items-center justify-between rounded-2xl border border-border-light bg-white px-4 py-3 shadow-[0_2px_8px_rgba(99,104,140,0.05)]"
             >
-              <Mic size={13} />
-              {isGenerating ? 'Generating...' : 'Generate Questions'}
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
+                  <Mic size={14} className="text-vybe-blue" />
+                </div>
+                <span className="text-[13px] font-semibold text-ink">Generate Questions from Audio</span>
+              </div>
+              <ChevronDown size={16} className={`text-ink-muted transition-transform ${showAISection ? 'rotate-180' : ''}`} />
             </button>
-          </div>
+
+            {showAISection && (
+              <div className="mb-3 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white p-4 shadow-[0_4px_16px_rgba(83,157,192,0.07)]">
+                <p className="mb-3 text-[12px] leading-[1.6] text-ink-muted">
+                  Select a test audio file to generate quiz questions using AI.
+                </p>
+                <select
+                  value={selectedFile}
+                  onChange={(e) => setSelectedFile(e.target.value)}
+                  disabled={isGenerating}
+                  className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
+                >
+                  <option value="">Select audio file...</option>
+                  {testFiles.map(f => {
+                    const isCached = Boolean(localStorage.getItem(`${AI_CACHE_PREFIX}${f}`));
+                    return (
+                      <option key={f} value={f}>
+                        {f}{isCached ? ' ✓ cached' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                {generationStatus && (
+                  <p className="text-[11px] text-vybe-blue mb-3 animate-pulse font-bold">{generationStatus}</p>
+                )}
+                <button
+                  onClick={handleAIGenerate}
+                  disabled={!selectedFile || isGenerating}
+                  className={`mt-1 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 py-2.5 text-[13px] font-bold transition-all ${
+                    !selectedFile || isGenerating
+                      ? 'bg-tint-muted text-ink-muted cursor-not-allowed'
+                      : 'bg-gradient-blue text-white shadow-glow-blue'
+                  }`}
+                >
+                  <Mic size={13} />
+                  {isGenerating ? 'Generating...' : 'Generate Questions'}
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Add Question section label */}

@@ -137,7 +137,7 @@ function App() {
         break;
 
       case 'session:results-released':
-        updateQuizState((prev) => prev ? { ...prev, resultsReleased: true } : null);
+        updateQuizState((prev) => prev ? { ...prev, resultsReleased: true, status: 'expired' } : null);
         showNotification('Results are now available!');
         break;
 

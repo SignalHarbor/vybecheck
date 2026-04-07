@@ -637,6 +637,7 @@ export class WebSocketHandler {
       // Persist results release to DB
       if (this.sessionRepo) {
         this.sessionRepo.updateResultsReleased(session.sessionId, true);
+        this.sessionRepo.updateStatus(session.sessionId, session.status);
       }
 
       this.broadcastToSession(session, { type: 'session:results-released' });

@@ -252,6 +252,7 @@ export class QuizSession {
       throw new Error('Can only release results for an active session');
     }
     this.resultsReleased = true;
+    this.status = "expired";
   }
 
   /**

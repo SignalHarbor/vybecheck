@@ -3,6 +3,7 @@ import { Sparkles, History, Lock, ChevronRight, Zap } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
+import { useFeatures } from '../utils/features';
 import type { LedgerEntry } from '../../shared/types';
 
 const REASON_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ const UNLOCK_PRICING = [
 ];
 
 export function VybesPage() {
+  const { enablePayments, isAdmin } = useFeatures();
   const { twitterUsername, vybesBalance, transactionHistory, setVybesBalance, setTransactionHistory } = useAuthStore();
   const { setActivePage } = useUIStore();
   const [showHistory, setShowHistory] = useState(false);
@@ -35,6 +37,11 @@ export function VybesPage() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const [adminIssueId, setAdminIssueId] = useState('');
+  const [adminIssueAmount, setAdminIssueAmount] = useState('20');
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [issueMessage, setIssueMessage] = useState('');
 
   const accountId = twitterUsername || '';
 
@@ -97,6 +104,35 @@ export function VybesPage() {
   const formatDate = (date: Date | string) => {
     const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleAdminIssue = async () => {
+    if (!adminIssueId || !adminIssueAmount) return;
+    setIsIssuing(true);
+    setIssueMessage('');
+    try {
+      const response = await fetch('/api/vybes/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUsername: twitterUsername,
+          participantId: adminIssueId,
+          amount: Number(adminIssueAmount)
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to issue');
+      setIssueMessage(`Success! New balance: ${data.balance}`);
+      if (adminIssueId === accountId) {
+        setVybesBalance(data.balance);
+      }
+      setAdminIssueId('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setIssueMessage(message);
+    } finally {
+      setIsIssuing(false);
+    }
   };
 
   const selectedPack = VYBE_PACKS.find(p => p.id === selected)!;
@@ -185,86 +221,90 @@ export function VybesPage() {
           </div>
         )}
 
-        {/* Buy Vybe Packs */}
-        <div className="mt-5 mb-3 flex items-center gap-2">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-yellow" />
-          <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-gold">BUY VYBE PACKS</p>
-        </div>
-
-        <div className="mb-5 flex flex-col gap-3">
-          {VYBE_PACKS.map(({ id, name, vybes, price, popular }) => {
-            const isSelected = selected === id;
-            const isPurchasing = purchasingPackId === id;
-
-            return (
-              <button
-                key={id}
-                onClick={() => setSelected(id)}
-                className={`relative flex cursor-pointer items-center justify-between rounded-2xl bg-white px-4 py-4 transition-all ${
-                  isSelected
-                    ? 'border-2 border-vybe-yellow shadow-card-yellow'
-                    : 'border border-border-light shadow-[0_2px_8px_rgba(99,104,140,0.05)]'
-                } ${isPurchasing ? 'opacity-70' : ''}`}
-              >
-                {popular && (
-                  <span className="absolute -top-2.5 right-16 rounded-full bg-vybe-yellow px-2 py-0.5 text-[9px] font-extrabold tracking-[0.5px] text-ink">
-                    POPULAR
-                  </span>
-                )}
-                <div className="text-left">
-                  <p className="text-[15px] font-bold text-ink">{name}</p>
-                  <div className="mt-1 flex items-center gap-1">
-                    <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
-                    <span className="text-[12px] font-medium text-ink-muted">{vybes} Vybes</span>
-                  </div>
-                </div>
-                <div className={`flex h-[40px] w-[58px] items-center justify-center rounded-2xl transition-all ${
-                  isSelected
-                    ? 'bg-gradient-yellow shadow-glow-yellow'
-                    : 'bg-tint-muted'
-                }`}>
-                  <span className={`text-[14px] font-extrabold ${isSelected ? 'text-ink' : 'text-ink-muted'}`}>
-                    ${price}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Unlock Pricing */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
-          <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">UNLOCK PRICING</p>
-        </div>
-
-        <div className="mb-5 rounded-3xl border border-border-light bg-white p-5 shadow-card-muted">
-          {UNLOCK_PRICING.map(({ label, cost, free }, index) => (
-            <div
-              key={label}
-              className={`flex items-center justify-between py-3 ${
-                index < UNLOCK_PRICING.length - 1 ? 'border-b border-border-light' : ''
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                  free ? 'bg-tint-green' : 'bg-tint-muted'
-                }`}>
-                  <Lock size={11} className={free ? 'text-status-success-dark' : 'text-ink-muted'} />
-                </div>
-                <span className="text-[13px] text-ink">{label}</span>
-              </div>
-              {free ? (
-                <span className="rounded-full bg-tint-green px-2.5 py-1 text-[11px] font-bold text-status-success-dark">Free</span>
-              ) : (
-                <div className="flex items-center gap-1 rounded-full bg-tint-yellow px-2.5 py-1">
-                  <span className="text-[13px] font-extrabold text-vybe-gold">{cost}</span>
-                  <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
-                </div>
-              )}
+        {enablePayments && (
+          <>
+            {/* Buy Vybe Packs */}
+            <div className="mt-5 mb-3 flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-yellow" />
+              <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-gold">BUY VYBE PACKS</p>
             </div>
-          ))}
-        </div>
+
+            <div className="mb-5 flex flex-col gap-3">
+              {VYBE_PACKS.map(({ id, name, vybes, price, popular }) => {
+                const isSelected = selected === id;
+                const isPurchasing = purchasingPackId === id;
+
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setSelected(id)}
+                    className={`relative flex cursor-pointer items-center justify-between rounded-2xl bg-white px-4 py-4 transition-all ${
+                      isSelected
+                        ? 'border-2 border-vybe-yellow shadow-card-yellow'
+                        : 'border border-border-light shadow-[0_2px_8px_rgba(99,104,140,0.05)]'
+                    } ${isPurchasing ? 'opacity-70' : ''}`}
+                  >
+                    {popular && (
+                      <span className="absolute -top-2.5 right-16 rounded-full bg-vybe-yellow px-2 py-0.5 text-[9px] font-extrabold tracking-[0.5px] text-ink">
+                        POPULAR
+                      </span>
+                    )}
+                    <div className="text-left">
+                      <p className="text-[15px] font-bold text-ink">{name}</p>
+                      <div className="mt-1 flex items-center gap-1">
+                        <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
+                        <span className="text-[12px] font-medium text-ink-muted">{vybes} Vybes</span>
+                      </div>
+                    </div>
+                    <div className={`flex h-[40px] w-[58px] items-center justify-center rounded-2xl transition-all ${
+                      isSelected
+                        ? 'bg-gradient-yellow shadow-glow-yellow'
+                        : 'bg-tint-muted'
+                    }`}>
+                      <span className={`text-[14px] font-extrabold ${isSelected ? 'text-ink' : 'text-ink-muted'}`}>
+                        ${price}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Unlock Pricing */}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
+              <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">UNLOCK PRICING</p>
+            </div>
+
+            <div className="mb-5 rounded-3xl border border-border-light bg-white p-5 shadow-card-muted">
+              {UNLOCK_PRICING.map(({ label, cost, free }, index) => (
+                <div
+                  key={label}
+                  className={`flex items-center justify-between py-3 ${
+                    index < UNLOCK_PRICING.length - 1 ? 'border-b border-border-light' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                      free ? 'bg-tint-green' : 'bg-tint-muted'
+                    }`}>
+                      <Lock size={11} className={free ? 'text-status-success-dark' : 'text-ink-muted'} />
+                    </div>
+                    <span className="text-[13px] text-ink">{label}</span>
+                  </div>
+                  {free ? (
+                    <span className="rounded-full bg-tint-green px-2.5 py-1 text-[11px] font-bold text-status-success-dark">Free</span>
+                  ) : (
+                    <div className="flex items-center gap-1 rounded-full bg-tint-yellow px-2.5 py-1">
+                      <span className="text-[13px] font-extrabold text-vybe-gold">{cost}</span>
+                      <Sparkles size={12} className="fill-vybe-yellow text-vybe-yellow" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* What are Vybes? */}
         <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-yellow/15 bg-gradient-dark p-5">
@@ -291,18 +331,57 @@ export function VybesPage() {
         </div>
 
         {/* Buy Button */}
-        <button
-          onClick={() => handlePurchase(selected)}
-          disabled={purchasingPackId !== null}
-          className="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-yellow py-4 text-[15px] font-extrabold text-ink shadow-glow-yellow-lg disabled:opacity-50"
-        >
-          <Sparkles size={18} className="text-ink" />
-          {purchasingPackId ? 'Loading...' : `Buy ${selectedPack.name} — $${selectedPack.price}`}
-        </button>
+        {enablePayments && (
+          <>
+            <button
+              onClick={() => handlePurchase(selected)}
+              disabled={purchasingPackId !== null}
+              className="mb-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-yellow py-4 text-[15px] font-extrabold text-ink shadow-glow-yellow-lg disabled:opacity-50"
+            >
+              <Sparkles size={18} className="text-ink" />
+              {purchasingPackId ? 'Loading...' : `Buy ${selectedPack.name} — $${selectedPack.price}`}
+            </button>
 
-        <p className="mb-1 text-center text-[11px] text-ink-muted">
-          🔒 Secure one-time purchase · No subscription
-        </p>
+            <p className="mb-1 text-center text-[11px] text-ink-muted">
+              🔒 Secure one-time purchase · No subscription
+            </p>
+          </>
+        )}
+
+        {/* ADMIN CONTROLS */}
+        {isAdmin && (
+          <div className="mt-6 mb-5 rounded-3xl border-2 border-vybe-blue/20 bg-white p-5 shadow-card-muted">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-blue" />
+              <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-blue">ADMIN: ISSUE VYBES</p>
+            </div>
+            
+            <input
+              type="text"
+              placeholder="Participant ID (e.g. @username)"
+              value={adminIssueId}
+              onChange={e => setAdminIssueId(e.target.value)}
+              className="w-full mb-2 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
+            />
+            <input
+              type="number"
+              placeholder="Amount"
+              value={adminIssueAmount}
+              onChange={e => setAdminIssueAmount(e.target.value)}
+              className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
+            />
+            <button
+              onClick={handleAdminIssue}
+              disabled={isIssuing || !adminIssueId || !adminIssueAmount}
+              className="w-full py-2.5 bg-tint-blue text-vybe-blue font-bold rounded-xl text-[12px] disabled:opacity-50"
+            >
+              {isIssuing ? 'Issuing...' : 'Grant Vybes'}
+            </button>
+            {issueMessage && (
+              <p className="mt-2 text-[11px] font-medium text-ink-muted">{issueMessage}</p>
+            )}
+          </div>
+        )}
 
         {/* DEV ONLY */}
         <div className="mt-8 pt-4 border-t border-dashed border-border-light">

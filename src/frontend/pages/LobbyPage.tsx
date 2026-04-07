@@ -24,7 +24,7 @@ export function LobbyPage() {
         <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-vybe-yellow" />
           <span className="text-[11px] font-bold text-vybe-yellow">
-            {quizState?.status === 'live' ? 'In lobby' : 'Session active'}
+            {quizState?.status === 'live' ? 'In lobby' : quizState?.status === 'expired' ? 'Session closed' : 'Session active'}
           </span>
         </div>
       ) : (
@@ -165,6 +165,7 @@ export function LobbyPage() {
 
   const isLobby = quizState.status === 'live';
   const isActive = quizState.status === 'active';
+  const isExpired = quizState.status === 'expired';
 
   const handleStartSession = () => {
     if (quizState.questions.length === 0) {
@@ -182,17 +183,19 @@ export function LobbyPage() {
     <div className="relative flex h-full flex-col bg-surface-page font-sans">
       <Header
         title="Lobby"
-        subtitle={isLobby ? 'Waiting for start 🎯' : 'Session active ⚡'}
+        subtitle={isLobby ? 'Waiting for start 🎯' : isExpired ? 'Session closed 🔒' : 'Session active ⚡'}
         pills={
           <>
             <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
               isLobby
                 ? 'border-vybe-yellow/25 bg-vybe-yellow/15'
+                : isExpired
+                ? 'border-ink-muted/30 bg-ink-muted/15'
                 : 'border-status-success/30 bg-status-success/15'
             }`}>
-              <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isLobby ? 'bg-vybe-yellow' : 'bg-status-success'}`} />
-              <span className={`text-[11px] font-bold ${isLobby ? 'text-vybe-yellow' : 'text-status-success'}`}>
-                {isLobby ? 'Lobby' : 'Active'}
+              <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isLobby ? 'bg-vybe-yellow' : isExpired ? 'bg-ink-muted' : 'bg-status-success'}`} />
+              <span className={`text-[11px] font-bold ${isLobby ? 'text-vybe-yellow' : isExpired ? 'text-ink-muted' : 'text-status-success'}`}>
+                {isLobby ? 'Lobby' : isExpired ? 'Closed' : 'Active'}
               </span>
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
@@ -213,7 +216,7 @@ export function LobbyPage() {
             </div>
             <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
               <Radio size={10} className="text-ink-muted" />
-              <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : 'ACTIVE'}</span>
+              <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
             </div>
           </div>
         </div>
@@ -227,7 +230,7 @@ export function LobbyPage() {
         </div>
 
         <div className="mb-5 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
-          {(isOwner && isActive && quizState.participantProgress
+          {(isOwner && (isActive || isExpired) && quizState.participantProgress
             ? quizState.participantProgress.map(p => (
                 <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
                   <div className="flex-1 min-w-0">
@@ -330,7 +333,7 @@ export function LobbyPage() {
               </button>
             )}
 
-            {isActive && quizState.resultsReleased && (
+            {(isActive || isExpired) && quizState.resultsReleased && (
               <div className="py-3 px-4 bg-tint-green rounded-2xl border border-status-success/20 text-center">
                 <span className="text-[13px] font-bold text-status-success-dark">
                   ✅ Results released — participants can view matches
@@ -348,7 +351,7 @@ export function LobbyPage() {
           </div>
         )}
 
-        {!isOwner && isActive && (
+        {!isOwner && (isActive || isExpired) && (
           <button
             onClick={() => setActivePage('quiz')}
             className="w-full flex items-center justify-center gap-2 rounded-2xl border-0 py-3.5 cursor-pointer text-[14px] font-bold bg-gradient-red text-white shadow-glow-red active:scale-[0.97]"
