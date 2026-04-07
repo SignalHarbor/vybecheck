@@ -14,6 +14,7 @@ interface DraftStore {
   removeDraft: (id: string) => void;
   setOwnerResponse: (id: string, response: string) => void;
   clearDrafts: () => void;
+  reorderDrafts: (startIndex: number, endIndex: number) => void;
 }
 
 let draftCounter = 0;
@@ -50,4 +51,13 @@ export const useDraftStore = create<DraftStore>((set) => ({
   },
   
   clearDrafts: () => set({ draftQuestions: [] }),
+  
+  reorderDrafts: (startIndex, endIndex) => {
+    set((state) => {
+      const result = Array.from(state.draftQuestions);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return { draftQuestions: result };
+    });
+  },
 }));

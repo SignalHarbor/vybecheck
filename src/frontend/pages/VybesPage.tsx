@@ -318,15 +318,15 @@ export function VybesPage() {
             </div>
             <p className="mb-2.5 text-[13px] leading-[1.7] text-white/70">
               Vybes unlock premium features — view detailed match results, access deeper analytics, and reveal who truly
-              resonates with you. New users get <span className="font-bold text-vybe-yellow">10 free Vybes</span> to start!
+              resonates with you.
             </p>
-            <button
+            {/* <button
               onClick={() => setActivePage('quiz')}
               className="flex cursor-pointer items-center gap-1 border-0 bg-transparent"
             >
               <span className="text-[12px] font-bold text-vybe-yellow">How to earn Vybes</span>
               <ChevronRight size={13} className="text-vybe-yellow" />
-            </button>
+            </button> */}
           </div>
         </div>
 

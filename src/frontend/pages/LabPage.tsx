@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, ChevronDown, X, Send, Trash2, FlaskConical, Radio } from 'lucide-react';
-import { useDraftStore } from '../store/draftStore';
+import { useDraftStore, type DraftQuestion } from '../store/draftStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
 import { useQuizStore } from '../store/quizStore';
@@ -16,12 +16,16 @@ const DEFAULT_QUESTION_LIMIT = 3;
 
 export function LabPage() {
   const { enableAIGeneration } = useFeatures();
-  const { draftQuestions, addDraft, removeDraft, clearDrafts, setOwnerResponse } = useDraftStore();
+  const { draftQuestions, addDraft, removeDraft, clearDrafts, setOwnerResponse, reorderDrafts } = useDraftStore();
   const { send } = useWebSocketStore();
   const { showNotification, showError, setActivePage } = useUIStore();
   const { sessionId, quizState, questionLimitState, isOwner } = useQuizStore();
   const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit, twitterUsername } = useAuthStore();
   const [isUnlocking, setIsUnlocking] = useState(false);
+
+  const [draggedDraftIndex, setDraggedDraftIndex] = useState<number | null>(null);
+
+  const questionInputRef = useRef<HTMLTextAreaElement>(null);
 
   const [questionPrompt, setQuestionPrompt] = useState('');
   const [option1, setOption1] = useState('');
@@ -99,6 +103,36 @@ export function LabPage() {
   const needsUpgradeForPublish = () => {
     const availableSlots = questionLimit - publishedQuestionsCount;
     return draftQuestions.length > availableSlots && !hasUpgraded;
+  };
+
+  const hasUnsavedInput = Boolean(
+    questionPrompt.trim() !== '' || option1.trim() !== '' || option2.trim() !== ''
+  );
+
+  const handleEditDraft = (draft: DraftQuestion) => {
+    setQuestionPrompt(draft.prompt);
+    setOption1(draft.options[0]);
+    setOption2(draft.options[1]);
+    setOwnerResponseState(draft.ownerResponse || '');
+    removeDraft(draft.id);
+    
+    setTimeout(() => {
+      questionInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedDraftIndex(index);
+  };
+
+  const handleDragEnter = (index: number) => {
+    if (draggedDraftIndex === null || draggedDraftIndex === index) return;
+    reorderDrafts(draggedDraftIndex, index);
+    setDraggedDraftIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedDraftIndex(null);
   };
 
   const publishDraftQuestions = () => {
@@ -299,6 +333,7 @@ export function LabPage() {
 
         <div className="mb-5 rounded-3xl border-[1.5px] border-border-light bg-white p-5 shadow-card-muted">
           <textarea
+            ref={questionInputRef}
             value={questionPrompt}
             onChange={(e) => setQuestionPrompt(e.target.value)}
             placeholder="Ask something worth answering…"
@@ -393,6 +428,12 @@ export function LabPage() {
                   index={index}
                   onRemove={removeDraft}
                   onSetOwnerResponse={setOwnerResponse}
+                  onEdit={handleEditDraft}
+                  isEditDisabled={hasUnsavedInput}
+                  editDisabledReason="Clear the form to edit this draft"
+                  onDragStart={handleDragStart}
+                  onDragEnter={handleDragEnter}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
 

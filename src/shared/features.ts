@@ -3,4 +3,4 @@ export const FEATURE_FLAGS = {
   enableAIGeneration: false,
 } as const;
 
-export const ADMIN_USERS = ['@nbyodai'];
+export const ADMIN_USERS = ['@nbyodai', '@BornRZA'];
