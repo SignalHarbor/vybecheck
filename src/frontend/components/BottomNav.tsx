@@ -62,7 +62,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
             }`}>
               <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
               {badge !== undefined && badge > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-vybe-red text-[8px] font-extrabold text-white">
+                <span className="absolute -top-1 -right-1 flex h-3.75 w-3.75 items-center justify-center rounded-full bg-vybe-red text-[8px] font-extrabold text-white">
                   {badge}
                 </span>
               )}

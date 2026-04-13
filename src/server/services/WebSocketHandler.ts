@@ -172,6 +172,9 @@ export class WebSocketHandler {
       case 'session:release-results':
         this.handleSessionReleaseResults(ws);
         break;
+      case 'session:terminate':
+        this.handleSessionTerminate(ws);
+        break;
       case 'question:add':
         this.handleQuestionAdd(ws, message.data);
         break;
@@ -371,6 +374,11 @@ export class WebSocketHandler {
       return;
     }
 
+    if (session.status === 'expired') {
+      this.sendError(ws, 'Cannot add questions to a closed session');
+      return;
+    }
+
     const isOwner = session.canAddQuestion(connectionInfo.participantId);
     if (!isOwner) {
       this.sendError(ws, 'Only owner can add questions');
@@ -532,6 +540,11 @@ export class WebSocketHandler {
       return;
     }
 
+    if (session.status === 'expired') {
+      this.sendError(ws, 'Cannot submit responses to a closed session');
+      return;
+    }
+
     const response: Response = {
       id: generateResponseId(),
       participantId: connectionInfo.participantId,
@@ -650,6 +663,48 @@ export class WebSocketHandler {
     } catch (error: unknown) {
       logger.error({ err: error, sessionId: session.sessionId }, 'Failed to release results');
       this.sendError(ws, 'Failed to release results');
+    }
+  }
+
+  private handleSessionTerminate(ws: WebSocket) {
+    const connectionInfo = this.connections.get(ws);
+    if (!connectionInfo) {
+      this.sendError(ws, 'Not in a session');
+      return;
+    }
+
+    const session = this.sessions.get(connectionInfo.sessionId);
+    if (!session) {
+      this.sendError(ws, 'Session not found');
+      return;
+    }
+
+    if (!session.canAddQuestion(connectionInfo.participantId)) {
+      this.sendError(ws, 'Only owner can terminate the session');
+      return;
+    }
+
+    // Allow terminate if: session not started (lobby), or owner is the only participant
+    const isLobby = session.status === 'live';
+    const onlyOwner = session.getParticipantCount() === 1;
+    if (!isLobby && !onlyOwner) {
+      this.sendError(ws, 'Cannot terminate a session with other participants');
+      return;
+    }
+
+    try {
+      session.terminateSession();
+
+      // Persist status change to DB
+      if (this.sessionRepo) {
+        this.sessionRepo.updateStatus(session.sessionId, session.status);
+      }
+
+      this.broadcastToSession(session, { type: 'session:terminated' });
+      logger.info({ sessionId: session.sessionId }, 'Session terminated by owner');
+    } catch (error: unknown) {
+      logger.error({ err: error, sessionId: session.sessionId }, 'Failed to terminate session');
+      this.sendError(ws, 'Failed to terminate session');
     }
   }
 

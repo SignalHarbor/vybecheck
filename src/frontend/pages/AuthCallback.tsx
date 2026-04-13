@@ -47,12 +47,13 @@ export function AuthCallback() {
         return;
       }
 
-      // Retrieve stored PKCE params
-      const storedRaw = sessionStorage.getItem(PKCE_STORAGE_KEY);
-      console.log('[AuthCallback] PKCE from sessionStorage:', storedRaw ? 'FOUND' : 'MISSING');
+      // Retrieve stored PKCE params (stored in localStorage because sessionStorage
+      // is unreliable on mobile browsers during cross-origin OAuth redirects)
+      const storedRaw = localStorage.getItem(PKCE_STORAGE_KEY);
+      console.log('[AuthCallback] PKCE from localStorage:', storedRaw ? 'FOUND' : 'MISSING');
 
       if (!storedRaw) {
-        console.error('[AuthCallback] No PKCE data in sessionStorage — was it cleared or did the session change?');
+        console.error('[AuthCallback] No PKCE data in localStorage — was it cleared or did the session change?');
         setError('Missing PKCE data — please try signing in again');
         redirectToHome();
         return;
@@ -72,7 +73,7 @@ export function AuthCallback() {
       }
 
       // Clean up PKCE storage
-      sessionStorage.removeItem(PKCE_STORAGE_KEY);
+      localStorage.removeItem(PKCE_STORAGE_KEY);
 
       const redirectUri = import.meta.env.VITE_TWITTER_REDIRECT_URI || `${window.location.origin}/auth/callback`;
       console.log('[AuthCallback] redirectUri for token exchange:', redirectUri);

@@ -256,6 +256,17 @@ export class QuizSession {
   }
 
   /**
+   * Terminate the session without releasing results.
+   * Allowed when session hasn't started (live) or owner is the only participant.
+   */
+  terminateSession(): void {
+    if (this.status === 'expired') {
+      throw new Error('Session is already expired');
+    }
+    this.status = 'expired';
+  }
+
+  /**
    * Get completion progress for all participants.
    */
   getParticipantProgress(): ParticipantProgress[] {

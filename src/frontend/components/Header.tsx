@@ -41,7 +41,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
 
       <div className="flex items-start justify-between px-5 pt-1">
         <div className="flex items-center gap-2.5">
-          <img src={logo} alt="VybeCheck" className="h-[30px] w-[30px] shrink-0 object-contain" />
+          <img src={logo} alt="VybeCheck" className="h-7.5 w-7.5 shrink-0 object-contain" />
           <div>
             {subtitle && (
               <p className="mb-0.5 text-[12px] tracking-[0.4px] text-white/45">{subtitle}</p>
@@ -52,7 +52,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
 
         <div className="flex items-center gap-2">
           {actionIcon && (
-            <div className={`mt-1 flex h-[42px] w-[42px] items-center justify-center rounded-2xl border ${actionStyles[actionColor]}`}>
+            <div className={`mt-1 flex h-10.5 w-10.5 items-center justify-center rounded-2xl border ${actionStyles[actionColor]}`}>
               {actionIcon}
             </div>
           )}
@@ -62,7 +62,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
               className="mt-1 shrink-0 cursor-pointer border-0 bg-transparent p-0"
               title="Sign Out"
             >
-              <img src={profileImageUrl} alt="" className="h-[34px] w-[34px] rounded-xl border-2 border-white/20 object-cover" />
+              <img src={profileImageUrl} alt="" className="h-8.5 w-8.5 rounded-xl border-2 border-white/20 object-cover" />
             </button>
           )}
         </div>

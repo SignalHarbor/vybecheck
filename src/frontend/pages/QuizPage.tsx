@@ -112,7 +112,7 @@ export function QuizPage() {
   // No active session
   if (!sessionId || !quizState) {
     return (
-      <div className="flex h-full flex-col bg-surface-page font-sans">
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header
           title="Quiz"
           subtitle="Ready to answer? ⚡"
@@ -183,7 +183,7 @@ export function QuizPage() {
   // Session hasn't started yet (still in lobby)
   if (quizState.status === 'live') {
     return (
-      <div className="flex h-full flex-col bg-surface-page font-sans">
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header title="Quiz" subtitle="Waiting to start ⏳" />
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
           <div className="text-5xl mb-4 animate-pulse">⏳</div>
@@ -202,7 +202,7 @@ export function QuizPage() {
 
   if (quizState.questions.length === 0) {
     return (
-      <div className="flex h-full flex-col bg-surface-page font-sans">
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header title="Quiz" subtitle="Waiting for questions ⏳" />
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
           <div className="text-5xl mb-4 opacity-50">⏳</div>
@@ -223,7 +223,7 @@ export function QuizPage() {
   const isCompleted = quizState.myResponses.every(r => r !== '');
 
   return (
-    <div className="flex h-full flex-col bg-surface-page font-sans">
+    <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header title="Quiz" subtitle="Answer time ⚡" />
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

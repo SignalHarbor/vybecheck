@@ -16,6 +16,7 @@ export type ClientMessage =
   | { type: 'session:leave' }
   | { type: 'session:start' }
   | { type: 'session:release-results' }
+  | { type: 'session:terminate' }
   | { type: 'question:add'; data: { prompt: string; options: [string, string]; timer?: number; ownerResponse?: string } }
   | { type: 'question:unlock-limit' }
   | { type: 'response:submit'; data: { questionId: string; optionChosen: string } }
@@ -30,6 +31,7 @@ export type ServerMessage =
   | { type: 'session:joined'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
   | { type: 'session:reconnected'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
   | { type: 'session:started' }
+  | { type: 'session:terminated' }
   | { type: 'session:results-released' }
   | { type: 'quiz:state'; data: QuizState }
   | { type: 'question:added'; data: { question: Question } }

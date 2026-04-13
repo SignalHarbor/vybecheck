@@ -136,6 +136,12 @@ function App() {
         }
         break;
 
+      case 'session:terminated':
+        resetQuizStore();
+        setActivePage('lobby');
+        showNotification('Session has been terminated');
+        break;
+
       case 'session:results-released':
         updateQuizState((prev) => prev ? { ...prev, resultsReleased: true, status: 'expired' } : null);
         showNotification('Results are now available!');
@@ -285,12 +291,12 @@ function App() {
       {(notification || error) && (
         <div className="absolute top-16 left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
-            <div className="bg-gradient-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down pointer-events-auto">
+            <div className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down pointer-events-auto">
               {notification}
             </div>
           )}
           {error && (
-            <div className="bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down pointer-events-auto">
+            <div className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down pointer-events-auto">
               {error}
             </div>
           )}

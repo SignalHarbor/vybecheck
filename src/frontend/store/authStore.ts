@@ -106,11 +106,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       console.log('[PKCE] Generated codeChallenge:', codeChallenge.slice(0, 16) + '...');
       console.log('[PKCE] Generated state:', state.slice(0, 16) + '...');
 
-      // Store PKCE params in sessionStorage (survives redirect)
-      sessionStorage.setItem(PKCE_STORAGE_KEY, JSON.stringify({ codeVerifier, state }));
+      // Store PKCE params in localStorage (sessionStorage is unreliable on mobile browsers
+      // during cross-origin redirects like Twitter OAuth)
+      localStorage.setItem(PKCE_STORAGE_KEY, JSON.stringify({ codeVerifier, state }));
 
       // Verify storage worked
-      const stored = sessionStorage.getItem(PKCE_STORAGE_KEY);
+      const stored = localStorage.getItem(PKCE_STORAGE_KEY);
       console.log('[PKCE] Stored in sessionStorage:', stored ? 'YES' : 'NO');
 
       // Build Twitter OAuth 2.0 authorize URL

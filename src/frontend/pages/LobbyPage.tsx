@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Users, ChevronRight, Radio, Zap } from 'lucide-react';
+import { Users, ChevronRight, Radio, Zap, XCircle } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { useDraftStore } from '../store/draftStore';
 import { Header } from '../components/Header';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function LobbyPage() {
-  const { sessionId, participantId, quizState, isOwner } = useQuizStore();
+  const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
   const { send } = useWebSocketStore();
   const { twitterUsername, authToken, signInWithTwitter } = useAuthStore();
   const isAuthenticated = authToken !== null;
@@ -17,6 +18,7 @@ export function LobbyPage() {
   const [joinSessionId, setJoinSessionId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
+  const [showTerminateDialog, setShowTerminateDialog] = useState(false);
 
   const headerPills = (
     <>
@@ -69,7 +71,7 @@ export function LobbyPage() {
     };
 
     return (
-      <div className="relative flex h-full flex-col bg-surface-page font-sans">
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header title="Lobby" subtitle="Find your vybe 🎯" pills={headerPills} />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -179,8 +181,22 @@ export function LobbyPage() {
     send({ type: 'session:release-results' });
   };
 
+  const handleTerminateSession = () => {
+    setShowTerminateDialog(true);
+  };
+
+  const confirmTerminate = () => {
+    send({ type: 'session:terminate' });
+    setShowTerminateDialog(false);
+  };
+
+  // Show terminate when: session in lobby, or owner is the only participant
+  const canTerminate = isOwner && !isExpired && (
+    isLobby || quizState.participantCount <= 1
+  );
+
   return (
-    <div className="relative flex h-full flex-col bg-surface-page font-sans">
+    <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header
         title="Lobby"
         subtitle={isLobby ? 'Waiting for start 🎯' : isExpired ? 'Session closed 🔒' : 'Session active ⚡'}
@@ -343,6 +359,17 @@ export function LobbyPage() {
           </div>
         )}
 
+        {/* Terminate session (owner only, conditional) */}
+        {canTerminate && (
+          <button
+            onClick={handleTerminateSession}
+            className="mb-4 w-full flex items-center justify-center gap-2 rounded-2xl border border-vybe-red/20 bg-white py-3 cursor-pointer text-[13px] font-bold text-vybe-red active:scale-[0.97]"
+          >
+            <XCircle size={15} />
+            Terminate Session
+          </button>
+        )}
+
         {/* Non-owner waiting state */}
         {!isOwner && isLobby && (
           <div className="py-8 text-center">
@@ -359,7 +386,26 @@ export function LobbyPage() {
             <Zap size={15} /> Go to Quiz
           </button>
         )}
+
+        {/* Leave closed session */}
+        {isExpired && (
+          <button
+            onClick={() => resetQuizStore()}
+            className="mt-2 w-full flex items-center justify-center gap-2 rounded-2xl border border-border-light bg-white py-3 cursor-pointer text-[13px] font-bold text-ink-muted active:scale-[0.97]"
+          >
+            Leave Session
+          </button>
+        )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showTerminateDialog}
+        title="Terminate Session?"
+        message="This will end the session permanently. This cannot be undone."
+        onConfirm={confirmTerminate}
+        onCancel={() => setShowTerminateDialog(false)}
+        confirmText="Terminate"
+      />
     </div>
   );
 }

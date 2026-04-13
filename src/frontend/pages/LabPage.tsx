@@ -54,7 +54,7 @@ export function LabPage() {
     }
   }, [showAISection]);
 
-  const hasActiveSession = Boolean(sessionId && quizState);
+  const hasActiveSession = Boolean(sessionId && quizState && quizState.status !== 'expired');
 
   useEffect(() => {
     if (pendingPublish && sessionId && sessionId !== prevSessionIdRef.current) {
@@ -115,7 +115,7 @@ export function LabPage() {
     setOption2(draft.options[1]);
     setOwnerResponseState(draft.ownerResponse || '');
     removeDraft(draft.id);
-    
+
     setTimeout(() => {
       questionInputRef.current?.focus();
     }, 0);
@@ -241,7 +241,7 @@ export function LabPage() {
           <span className="text-[11px] font-bold text-status-success">Live</span>
           <span className="mx-0.5 text-status-success/30">|</span>
           <Radio size={10} className="text-status-success/60" />
-          <span className="font-mono text-[10px] text-status-success/70">{sessionId?.slice(0, 8)}…</span>
+          <span className="font-mono text-[10px] text-status-success/70">{sessionId}</span>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
@@ -258,7 +258,7 @@ export function LabPage() {
   );
 
   return (
-    <div className="relative flex h-full flex-col bg-surface-page font-sans">
+    <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header
         title="Lab"
         subtitle="Host your session ✨"
@@ -451,7 +451,9 @@ export function LabPage() {
         <div className="h-2" />
       </div>
 
-      {/* Floating publish button */}
+      {/* Floating publish button — sticky FAB that shows "Publish N Questions" above the bottom nav.
+         Commented out to reduce visual noise; the inline "Publish All" button in the draft header
+         already provides the same functionality.
       {hasActiveSession && draftQuestions.length > 0 && (
         <div className="absolute right-4 bottom-[80px] z-20">
           <button
@@ -463,6 +465,7 @@ export function LabPage() {
           </button>
         </div>
       )}
+      */}
 
       <ConfirmDialog
         isOpen={showPublishDialog}
