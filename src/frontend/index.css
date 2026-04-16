@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @config "../../tailwind.config.js";
 
+@theme {
+  --font-sans: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+}
+
 @layer base {
   * {
     margin: 0;
