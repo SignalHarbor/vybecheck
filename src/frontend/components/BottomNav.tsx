@@ -1,4 +1,4 @@
-import { Zap, Radio, Sparkles, FlaskConical } from 'lucide-react';
+import { Zap, DoorOpen, Sparkles, FlaskConical } from 'lucide-react';
 import type { PageType } from '../store/uiStore';
 import type { LucideIcon } from 'lucide-react';
 
@@ -22,6 +22,11 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
   if (activePage === 'start') return null;
 
   const navItems: NavItem[] = [
+    {
+      id: 'lobby' as PageType,
+      label: 'Lobby',
+      icon: DoorOpen,
+    },
     ...(isAuthenticated ? [{
       id: 'lab' as PageType,
       label: 'Lab',
@@ -32,11 +37,6 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
       id: 'quiz' as PageType,
       label: 'Quiz',
       icon: Zap,
-    },
-    {
-      id: 'lobby' as PageType,
-      label: 'Lobby',
-      icon: Radio,
     },
     ...(isAuthenticated ? [{
       id: 'vybes' as PageType,
