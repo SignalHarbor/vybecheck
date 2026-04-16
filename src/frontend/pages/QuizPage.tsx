@@ -343,6 +343,21 @@ export function QuizPage() {
   // Calculate completion locally - check if all questions have been answered
   const isCompleted = quizState.myResponses.every(r => r !== '');
 
+  // Touch swipe to navigate questions
+  const touchStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 50) return; // threshold
+    if (dx < 0 && currentQuestionIndex < totalQuestions - 1 && hasAnswered) {
+      setCurrentQuestionIndex(i => i + 1); // swipe left = next
+    } else if (dx > 0 && currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(i => i - 1); // swipe right = prev
+    }
+  };
+
   return (
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header title="Quiz" subtitle="Answer time ⚡" />
@@ -401,7 +416,11 @@ export function QuizPage() {
         {/* Question Card */}
         {!isCompleted ? (
           <>
-          <div className="rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center">
+          <div
+            className="rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-5">
               <Zap size={24} strokeWidth={2} className="text-vybe-blue" />
             </div>

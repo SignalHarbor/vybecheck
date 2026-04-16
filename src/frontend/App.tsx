@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { ServerMessage } from '../shared/types';
 import { useWebSocketStore } from './store/websocketStore';
 import { useAuthStore } from './store/authStore';
@@ -23,8 +23,21 @@ function App() {
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
   const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, quizState, reset: resetQuizStore } = useQuizStore();
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
-  const { activePage, setActivePage, notification, error, showNotification, showError } = useUIStore();
+  const { activePage, setActivePage, notification, error, showNotification, showError, clearNotification, clearError } = useUIStore();
   const { draftQuestions } = useDraftStore();
+
+  // Scroll position memory — restore per-tab scroll on tab switch
+  const scrollRefs = useRef<Partial<Record<string, number>>>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollContainerRef.current?.querySelector('[data-scroll-container]') as HTMLElement | null;
+    if (el) {
+      el.scrollTop = scrollRefs.current[activePage] ?? 0;
+    }
+  }, [activePage]);
+  const handleScrollSave = (page: string, top: number) => {
+    scrollRefs.current[page] = top;
+  };
 
   // Onboarding — shown once per user on first sign-in
   // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
@@ -317,12 +330,20 @@ function App() {
       {(notification || error) && (
         <div className="absolute bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
-            <div className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto">
+            <div
+              onClick={clearNotification}
+              className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
               {notification}
             </div>
           )}
           {error && (
-            <div className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-up pointer-events-auto">
+            <div
+              onClick={clearError}
+              className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
               {error}
             </div>
           )}
@@ -348,12 +369,23 @@ function App() {
       )}
 
       {/* Page content — re-keyed on route change to trigger fade-in */}
-      <div key={activePage} className="flex-1 min-h-0 flex flex-col animate-fade-in overflow-hidden">
+      <div key={activePage} className="flex-1 min-h-0 flex flex-col animate-fade-in overflow-hidden" ref={scrollContainerRef}>
         {activePage === 'lab' && <LabPage />}
         {activePage === 'quiz' && <QuizPage />}
         {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
         {activePage === 'vybes' && <VybesPage />}
       </div>
+
+      {/* Onboarding replay button — "?" floating above nav on Lobby */}
+      {activePage === 'lobby' && !showOnboarding && (
+        <button
+          onClick={() => setShowOnboarding(true)}
+          className="absolute bottom-[calc(80px+env(safe-area-inset-bottom))] right-4 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-white shadow-card-muted text-[13px] font-extrabold text-ink-muted cursor-pointer"
+          title="How it works"
+        >
+          ?
+        </button>
+      )}
 
       <BottomNav
         activePage={activePage}

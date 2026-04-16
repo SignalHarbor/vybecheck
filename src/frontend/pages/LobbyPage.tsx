@@ -165,10 +165,19 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                   disabled={isCreating}
                   className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-red py-3 text-[14px] font-bold text-white shadow-glow-red disabled:opacity-50"
                 >
-                  <DoorOpen size={15} />
-                  {isCreating ? 'Creating...' : draftQuestions.length > 0
-                    ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''})`
-                    : 'Create New Session'}
+                  {isCreating ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Setting up your session…
+                    </>
+                  ) : (
+                    <>
+                      <DoorOpen size={15} />
+                      {draftQuestions.length > 0
+                        ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''})`
+                        : 'Create New Session'}
+                    </>
+                  )}
                 </button>
                 {draftQuestions.length > 0 && (
                   <p className="mt-2 text-[11px] text-vybe-blue text-center">

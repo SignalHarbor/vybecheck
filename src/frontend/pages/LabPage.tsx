@@ -91,6 +91,7 @@ export function LabPage() {
     setOption1('');
     setOption2('');
     setOwnerResponseState('');
+    setIsEditingDraft(false);
     haptic();
     showNotification('Question added to drafts');
   };
@@ -111,16 +112,24 @@ export function LabPage() {
     questionPrompt.trim() !== '' || option1.trim() !== '' || option2.trim() !== ''
   );
 
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+
   const handleEditDraft = (draft: DraftQuestion) => {
     setQuestionPrompt(draft.prompt);
     setOption1(draft.options[0]);
     setOption2(draft.options[1]);
     setOwnerResponseState(draft.ownerResponse || '');
+    setIsEditingDraft(true);
     removeDraft(draft.id);
+    setTimeout(() => { questionInputRef.current?.focus(); }, 0);
+  };
 
-    setTimeout(() => {
-      questionInputRef.current?.focus();
-    }, 0);
+  const handleCancelEdit = () => {
+    setQuestionPrompt('');
+    setOption1('');
+    setOption2('');
+    setOwnerResponseState('');
+    setIsEditingDraft(false);
   };
 
   const handleDragStart = (index: number) => {
@@ -329,9 +338,21 @@ export function LabPage() {
         )}
 
         {/* Add Question section label */}
-        <div className="mb-3 flex items-center gap-2">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
-          <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">ADD QUESTION</p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-ink-muted" />
+            <p className="text-[11px] font-extrabold tracking-[0.8px] text-ink-muted">
+              {isEditingDraft ? 'EDIT QUESTION' : 'ADD QUESTION'}
+            </p>
+          </div>
+          {isEditingDraft && (
+            <button
+              onClick={handleCancelEdit}
+              className="flex items-center gap-1 rounded-xl border border-border-light bg-surface-page px-2.5 py-1 text-[11px] font-bold text-ink-muted cursor-pointer"
+            >
+              ← Cancel edit
+            </button>
+          )}
         </div>
 
         <div className="mb-5 rounded-3xl border-[1.5px] border-border-light bg-white p-5 shadow-card-muted">
