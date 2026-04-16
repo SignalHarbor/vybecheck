@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type PageType = 'start' | 'lab' | 'quiz' | 'lobby' | 'vybes';
 
 const ACTIVE_PAGE_KEY = 'vybecheck_activePage';
+const DARK_MODE_KEY   = 'vybecheck_dark_mode';
 
 const getStoredActivePage = (): PageType => {
   try {
@@ -16,13 +17,37 @@ const getStoredActivePage = (): PageType => {
   return 'start';
 };
 
+const getStoredDarkMode = (): boolean => {
+  try {
+    return localStorage.getItem(DARK_MODE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+// Apply dark class to <html> and keep DOM in sync
+const applyDarkMode = (dark: boolean) => {
+  document.documentElement.classList.toggle('dark', dark);
+  try {
+    localStorage.setItem(DARK_MODE_KEY, dark ? '1' : '0');
+  } catch {
+    // Ignore
+  }
+};
+
+// Initialise on store creation (runs once)
+const initialDark = getStoredDarkMode();
+applyDarkMode(initialDark);
+
 interface UIStore {
   activePage: PageType;
   notification: string;
   error: string;
   info: string;
+  isDarkMode: boolean;
   
   setActivePage: (page: PageType) => void;
+  toggleDarkMode: () => void;
   showNotification: (message: string, duration?: number) => void;
   showError: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
@@ -31,11 +56,12 @@ interface UIStore {
   clearInfo: () => void;
 }
 
-export const useUIStore = create<UIStore>((set) => ({
+export const useUIStore = create<UIStore>((set, get) => ({
   activePage: getStoredActivePage(),
   notification: '',
   error: '',
   info: '',
+  isDarkMode: initialDark,
   
   setActivePage: (page) => {
     try {
@@ -44,6 +70,12 @@ export const useUIStore = create<UIStore>((set) => ({
       // Ignore
     }
     set({ activePage: page });
+  },
+
+  toggleDarkMode: () => {
+    const next = !get().isDarkMode;
+    applyDarkMode(next);
+    set({ isDarkMode: next });
   },
   
   showNotification: (message, duration = 3000) => {
