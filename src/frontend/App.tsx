@@ -312,7 +312,7 @@ function App() {
   const showSessionBanner = hasActiveSession && !onSessionPage;
 
   return (
-    <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans">
+    <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans transition-colors duration-300">
       {/* Fixed toast notifications — bottom of screen above nav */}
       {(notification || error) && (
         <div className="absolute bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-4 pointer-events-none">

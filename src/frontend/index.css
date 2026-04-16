@@ -50,8 +50,68 @@
     border-color: #539DC0;
     box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.12);
   }
+
+  /* ── Universal button press animation ─────────────────── */
+  button {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.12s ease;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.94);
+    opacity: 0.88;
+  }
 }
 
+/* ── Dark Mode ───────────────────────────────────────────── */
+/*
+   Tailwind v4 exposes design tokens as CSS custom properties.
+   Overriding them here flips every component that uses these
+   tokens without touching individual component files.
+*/
+.dark {
+  color-scheme: dark;
+
+  /* surfaces */
+  --color-surface-page:  #0E1020;
+  --color-surface-card:  #15182A;
+  --color-surface-header: #12111E;
+
+  /* text */
+  --color-ink:       #E8EAF6;
+  --color-ink-muted: #8B92B8;
+
+  /* borders */
+  --color-border-light: #252840;
+
+  /* tints — darkened versions */
+  --color-tint-muted:  #1C1F38;
+  --color-tint-blue:   #0D2130;
+  --color-tint-yellow: #211B00;
+  --color-tint-pink:   #220C15;
+  --color-tint-green:  #0A2012;
+}
+
+/* bg-white is a CSS keyword (not a custom property), remap it in dark mode */
+.dark .bg-white {
+  background-color: #1C1F38 !important;
+}
+
+/* Keep nav/card shadow visible in dark */
+.dark nav {
+  border-top-color: #252840;
+  background-color: #15182A;
+}
+
+/* Inputs in dark mode */
+.dark input,
+.dark textarea,
+.dark select {
+  background: #1C1F38;
+  border-color: #252840;
+  color: #E8EAF6;
+}
+
+/* ── Keyframes ──────────────────────────────────────────── */
 @keyframes confettiBurst {
   0%   { transform: translateY(0) scale(1); opacity: 1; }
   60%  { opacity: 1; }
