@@ -303,7 +303,7 @@ export function LabPage() {
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header
         title="Lab"
-        subtitle="Host your session ✨"
+        subtitle="Build your quiz 🔬"
         pills={headerPills}
       />
 
