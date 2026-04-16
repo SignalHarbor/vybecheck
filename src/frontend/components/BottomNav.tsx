@@ -65,8 +65,8 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
                 : 'cursor-pointer active:scale-95'
             } ${
               isActive
-                ? 'font-bold bg-[linear-gradient(135deg,#F14573,#C91457)] bg-clip-text text-transparent'
-                : 'font-normal text-ink-muted'
+                ? 'font-bold text-vybe-red'
+                : 'font-medium text-ink opacity-55'
             }`}
           >
             <div className={`relative rounded-xl p-1.5 ${
