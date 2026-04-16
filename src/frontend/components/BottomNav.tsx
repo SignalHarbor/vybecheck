@@ -22,6 +22,7 @@ interface NavItem {
   badge?: number;
   locked?: boolean;
   lockedMessage?: string;
+  hidden?: boolean;
 }
 
 export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession, participantCount, onLockedTap }: BottomNavProps) {
@@ -41,6 +42,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
       badge: draftCount > 0 ? draftCount : undefined,
       locked: !isAuthenticated,
       lockedMessage: 'Sign in to build your own quiz 🔬',
+      hidden: isAuthenticated && !isOwner && hasActiveSession,
     },
     {
       id: 'quiz' as PageType,
@@ -58,7 +60,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
 
   return (
     <nav className="shrink-0 flex items-center justify-around border-t border-border-light bg-white px-2 pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] z-50">
-      {navItems.map(({ id, label, icon: Icon, badge, locked, lockedMessage }) => {
+      {navItems.filter(item => !item.hidden).map(({ id, label, icon: Icon, badge, locked, lockedMessage }) => {
         const isActive = activePage === id;
         return (
           <button
