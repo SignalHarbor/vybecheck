@@ -5,12 +5,12 @@ import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
 import logo from '../assets/logo.png';
 
-export function StartPage() {
+export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { isSigningIn, signInWithTwitter, twitterUsername } = useAuthStore();
   const { send } = useWebSocketStore();
   const { error, notification, showError } = useUIStore();
 
-  const [joinSessionId, setJoinSessionId] = useState('');
+  const [joinSessionId, setJoinSessionId] = useState(prefilledSessionId || '');
 
   const handleSignIn = () => {
     signInWithTwitter();
@@ -29,7 +29,7 @@ export function StartPage() {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
         <img src={logo} alt="VybeCheck Logo" className="w-[90px] h-[90px] rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.3)]" />
         <h1 className="text-[38px] font-black text-white mb-0">VybeCheck</h1>
-        <p className="text-white/50 text-[14px] -mt-1 mb-6">Your vibes on real-time debates</p>
+        <p className="text-white/50 text-[14px] -mt-1 mb-2">Live quiz matching for Twitter Spaces</p>
 
         {error && (
           <div className="w-full max-w-[320px] bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down">
@@ -61,13 +61,13 @@ export function StartPage() {
             </>
           )}
         </button>
-        <p className="text-white/35 text-[12px] max-w-[320px] text-center">
-          Sign in to create quizzes and view matches
+        <p className="text-white/35 text-[12px] max-w-[320px] text-center -mt-1 mb-2">
+          Host a session, build quizzes &amp; see your matches
         </p>
 
         <div className="flex items-center gap-3 w-full max-w-[320px] my-2">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/30 text-[11px] font-bold">OR JOIN SESSION</span>
+          <span className="text-white/30 text-[11px] font-bold">OR JOIN AS PARTICIPANT</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
@@ -93,7 +93,7 @@ export function StartPage() {
           )}
         </div>
         <p className="text-white/30 text-[11px] max-w-[320px] text-center">
-          Join as a participant to answer questions
+          Answer questions — no account needed
         </p>
       </div>
 
