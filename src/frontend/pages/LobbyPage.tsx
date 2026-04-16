@@ -88,13 +88,13 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       setIsCreating(true);
       send({ type: 'session:create', data: { username: twitterUsername || undefined } });
 
-      // 30s safety timeout — reset if server never responds (disabled in dev)
+      // 2 minute safety timeout — reset if server never responds (disabled in dev)
       if (!import.meta.env.DEV) {
         if (createTimeoutRef.current) clearTimeout(createTimeoutRef.current);
         createTimeoutRef.current = setTimeout(() => {
           setIsCreating(false);
           showError('Session creation timed out. Please try again.');
-        }, 30000);
+        }, 120000);
       }
 
       if (draftQuestions.length > 0) {
