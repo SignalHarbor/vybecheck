@@ -155,6 +155,38 @@
 .dark .transition-colors, .dark.transition-colors { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
 
 /* ═══════════════════════════════════════════════════════════
+   LIGHT MODE HEADER — COMPARISON VARIANT
+   TODO: Decide before publishing — remove this block to keep
+   the dark branded header, or keep it for a fully light UI.
+   ══════════════════════════════════════════════════════════ */
+html:not(.dark) header,
+html:not(.dark) .bg-gradient-header {
+  background: linear-gradient(160deg, #CBD5F0 0%, #B8C8EA 100%) !important;
+}
+
+/* Swap white text → deep navy on the light header */
+html:not(.dark) header h1,
+html:not(.dark) header p,
+html:not(.dark) header span:not([class*="text-vybe"]):not([class*="bg-"]) {
+  color: #1A1A2E !important;
+}
+/* Subtitle / muted text */
+html:not(.dark) header [class*="text-white/4"],
+html:not(.dark) header [class*="text-white/5"] {
+  color: #3A4070 !important;
+}
+/* Icon wrapper pill borders/bgs */
+html:not(.dark) header [class*="border-white/"],
+html:not(.dark) header [class*="bg-white/"] {
+  border-color: rgba(26,26,46,0.15) !important;
+  background-color: rgba(26,26,46,0.07) !important;
+}
+/* Moon icon, vybes badge text on light header */
+html:not(.dark) header [class*="text-white"] {
+  color: #1A1A2E !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
    LIGHT MODE
    The default Tailwind values produce a flat, too-white UI.
    We pull depth from the app's navy-lavender palette:
