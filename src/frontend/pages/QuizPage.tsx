@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft, Home } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -7,6 +7,7 @@ import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
 import { MatchCard } from '../components/MatchCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { haptic } from '../utils/haptic';
 import type { MatchTier } from '../../shared/types';
 
 const TIER_COSTS: Record<MatchTier, number> = {
@@ -83,6 +84,7 @@ export function QuizPage() {
   }, [quizState?.myResponses]);
 
   const submitResponse = (questionId: string, optionChosen: string) => {
+    haptic();
     send({
       type: 'response:submit',
       data: { questionId, optionChosen }
@@ -276,6 +278,56 @@ export function QuizPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
           <div className="text-5xl mb-4 opacity-50">⏳</div>
           <p className="text-[13px] text-ink-muted m-0">Waiting for the host to add questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Session ended — show a summary screen
+  if (quizState.status === 'expired') {
+    const answeredCount = quizState.myResponses.filter(r => r !== '').length;
+    const totalQs = quizState.questions.length;
+    return (
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
+        <Header title="Quiz" subtitle="Session wrapped 🎉" pills={headerPills} />
+        <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Summary card */}
+          <div className="mb-4 rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
+            <div className="mb-4 w-14 h-14 bg-tint-yellow rounded-2xl flex items-center justify-center text-3xl">🏁</div>
+            <h2 className="text-[17px] font-extrabold text-ink mb-1">Session Ended</h2>
+            <p className="text-[13px] text-ink-muted mb-5">Here's how you did</p>
+            <div className="flex items-stretch gap-3 w-full mb-5">
+              <div className="flex-1 rounded-2xl bg-tint-blue p-3 text-center">
+                <p className="text-[22px] font-black text-vybe-blue">{answeredCount}/{totalQs}</p>
+                <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">ANSWERED</p>
+              </div>
+              <div className="flex-1 rounded-2xl bg-tint-yellow p-3 text-center">
+                <p className="text-[22px] font-black text-vybe-gold">{vybesBalance}</p>
+                <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">VYBES</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActivePage('lobby')}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-red py-3 text-[14px] font-bold text-white shadow-glow-red cursor-pointer active:scale-[0.97]"
+            >
+              <Home size={15} /> Back to Lobby
+            </button>
+          </div>
+
+          {/* Show matches if released */}
+          {quizState.resultsReleased && matchState?.matches && matchState.matches.length > 0 && (
+            <>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">YOUR MATCHES</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {matchState.matches.map((match, i) => (
+                  <MatchCard key={match.participantId} match={match} rank={i + 1} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

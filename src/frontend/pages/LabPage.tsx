@@ -9,6 +9,7 @@ import { Header } from '../components/Header';
 import { DraftQuestionCard } from '../components/DraftQuestionCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useFeatures } from '../utils/features';
+import { haptic } from '../utils/haptic';
 import type { GeneratedQuestion } from '../../server/services/QuestionGeneratorService';
 
 const QUESTION_LIMIT_UPGRADE_COST = 3;
@@ -90,6 +91,7 @@ export function LabPage() {
     setOption1('');
     setOption2('');
     setOwnerResponseState('');
+    haptic();
     showNotification('Question added to drafts');
   };
 
@@ -154,6 +156,7 @@ export function LabPage() {
     const questionsToPublish = [...draftQuestions];
     clearDrafts();
     setShowPublishDialog(false);
+    haptic(20);
     showNotification(`Publishing ${questionsToPublish.length} question${questionsToPublish.length !== 1 ? 's' : ''}...`);
     questionsToPublish.forEach(draft => {
       send({ type: 'question:add', data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse } });
@@ -393,6 +396,31 @@ export function LabPage() {
         </div>
 
         {/* Draft Questions */}
+        {/* Question limit progress bar */}
+        {(() => {
+          const pct = Math.min((draftQuestions.length / questionLimit) * 100, 100);
+          const barColor = pct >= 100 ? 'bg-vybe-red' : pct >= 67 ? 'bg-vybe-yellow' : 'bg-status-success';
+          return (
+            <div className="mb-4 rounded-2xl border border-border-light bg-white p-3.5 shadow-card-muted">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-extrabold tracking-[0.6px] text-ink-muted">DRAFT QUESTIONS</span>
+                <span className={`text-[11px] font-extrabold ${pct >= 100 ? 'text-vybe-red' : pct >= 67 ? 'text-vybe-gold' : 'text-status-success-dark'}`}>
+                  {draftQuestions.length} / {questionLimit}
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-tint-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              {pct >= 100 && (
+                <p className="mt-1.5 text-[11px] text-vybe-red font-semibold">Limit reached — publish to add more</p>
+              )}
+            </div>
+          );
+        })()}
+
         {draftQuestions.length === 0 ? (
           <div className="flex flex-col items-center rounded-3xl border-[1.5px] border-dashed border-border-light bg-white/60 px-6 py-10 text-center shadow-card-muted">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-muted">

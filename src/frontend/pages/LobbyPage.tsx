@@ -7,6 +7,13 @@ import { useUIStore } from '../store/uiStore';
 import { useDraftStore } from '../store/draftStore';
 import { Header } from '../components/Header';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { haptic } from '../utils/haptic';
+
+/** Format a raw session ID into readable XXXX-XXXX groups. */
+const formatSessionId = (id: string): string => {
+  const clean = id.replace(/-/g, '').slice(0, 8).toUpperCase();
+  return clean.length === 8 ? `${clean.slice(0, 4)}-${clean.slice(4, 8)}` : id.toUpperCase();
+};
 
 export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
@@ -24,6 +31,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const copySessionId = () => {
     if (!sessionId) return;
     navigator.clipboard.writeText(sessionId).then(() => {
+      haptic();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -31,6 +39,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
 
   const shareSession = async () => {
     if (!sessionId) return;
+    haptic();
     const shareUrl = `${window.location.origin}/join/${sessionId}`;
     if (navigator.share) {
       try {
@@ -271,7 +280,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
-              <p className="mt-1 font-mono text-[15px] font-bold tracking-wider text-ink">{sessionId}</p>
+              <p className="mt-1 font-mono text-[15px] font-bold tracking-wider text-ink">{formatSessionId(sessionId!)}</p>
             </div>
             <div className="flex items-center gap-2">
               <button

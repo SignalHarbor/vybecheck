@@ -10,6 +10,7 @@ interface BottomNavProps {
   draftCount: number;
   isAuthenticated: boolean;
   hasActiveSession: boolean;
+  participantCount?: number;
 }
 
 interface NavItem {
@@ -20,7 +21,7 @@ interface NavItem {
   locked?: boolean;
 }
 
-export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession }: BottomNavProps) {
+export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession, participantCount }: BottomNavProps) {
   if (activePage === 'start') return null;
 
   const navItems: NavItem[] = [
@@ -28,6 +29,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
       id: 'lobby' as PageType,
       label: 'Lobby',
       icon: DoorOpen,
+      badge: hasActiveSession && participantCount && participantCount > 0 ? participantCount : undefined,
     },
     {
       id: 'lab' as PageType,

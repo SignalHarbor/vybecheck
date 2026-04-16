@@ -31,7 +31,7 @@ export function VybesPage() {
   const { enablePayments, isAdmin } = useFeatures();
   const { twitterUsername, vybesBalance, transactionHistory, setVybesBalance, setTransactionHistory } = useAuthStore();
   const { setActivePage } = useUIStore();
-  const [showHistory, setShowHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(true);
   const [selected, setSelected] = useState('pro');
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
@@ -160,13 +160,24 @@ export function VybesPage() {
 
         <div className="relative px-5">
           <p className="mb-1.5 text-[10px] font-bold tracking-[1.2px] text-white/40">YOUR BALANCE</p>
-          <div className="mb-5 flex items-end gap-2">
+          <div className="mb-3 flex items-end gap-2">
             <Sparkles size={30} className="fill-vybe-yellow text-vybe-yellow" />
             <span className="text-[52px] leading-none font-black text-white">
               {isLoadingBalance ? '…' : vybesBalance}
             </span>
             <span className="mb-1.5 text-[20px] font-bold text-vybe-yellow">Vybes</span>
           </div>
+
+          {/* Last transaction inline */}
+          {transactionHistory.length > 0 && (
+            <p className="mb-3 text-[11px] text-white/40">
+              Last: <span className="text-white/65 font-semibold">{REASON_LABELS[transactionHistory[0].reason] ?? transactionHistory[0].reason}</span>
+              {' '}·{' '}
+              <span className={transactionHistory[0].amount > 0 ? 'text-status-success' : 'text-vybe-red'}>
+                {transactionHistory[0].amount > 0 ? '+' : ''}{transactionHistory[0].amount}
+              </span>
+            </p>
+          )}
 
           <div className="flex items-center gap-2">
             <button

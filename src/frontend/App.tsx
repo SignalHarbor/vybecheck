@@ -313,16 +313,16 @@ function App() {
 
   return (
     <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans">
-      {/* Fixed toast notifications */}
+      {/* Fixed toast notifications — bottom of screen above nav */}
       {(notification || error) && (
-        <div className="absolute top-16 left-0 right-0 z-50 px-4 pointer-events-none">
+        <div className="absolute bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
-            <div className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down pointer-events-auto">
+            <div className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto">
               {notification}
             </div>
           )}
           {error && (
-            <div className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down pointer-events-auto">
+            <div className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-up pointer-events-auto">
               {error}
             </div>
           )}
@@ -360,6 +360,7 @@ function App() {
         draftCount={draftQuestions.length}
         isAuthenticated={authToken !== null}
         hasActiveSession={hasActiveSession}
+        participantCount={quizState?.participantCount}
       />
 
       {/* First-time onboarding overlay */}

@@ -1,9 +1,11 @@
-import type { ReactNode } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useState, useEffect, type ReactNode } from 'react';
+import { Sparkles, Moon, Sun } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
 import logo from '../assets/logo.png';
+
+const DARK_MODE_KEY = 'vybecheck_dark_mode';
 
 interface HeaderProps {
   title: string;
@@ -27,6 +29,26 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
   const { reset: resetQuizStore } = useQuizStore();
   const { setActivePage } = useUIStore();
   const isAuthenticated = authToken !== null;
+
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.classList.contains('dark');
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem(DARK_MODE_KEY);
+    if (saved === '1') {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    }
+  }, []);
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle('dark', next);
+    localStorage.setItem(DARK_MODE_KEY, next ? '1' : '0');
+  };
 
   const handleSignOut = () => {
     signOut();
@@ -52,6 +74,16 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Dark mode toggle — TODO: Add dark: variants to components before publishing */}
+          <button
+            onClick={toggleDark}
+            className="mt-1 flex h-7.5 w-7.5 items-center justify-center rounded-xl border border-white/15 bg-white/10 cursor-pointer"
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark
+              ? <Sun size={13} className="text-vybe-yellow" />
+              : <Moon size={13} className="text-white/60" />}
+          </button>
           {isAuthenticated && (
             <button
               onClick={() => setActivePage('vybes')}
