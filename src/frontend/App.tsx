@@ -27,12 +27,14 @@ function App() {
   const { draftQuestions } = useDraftStore();
 
   // Onboarding — shown once per user on first sign-in
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  useEffect(() => {
-    if (isSignedIn && !localStorage.getItem(ONBOARDING_KEY)) {
-      setShowOnboarding(true);
-    }
-  }, [isSignedIn]);
+  // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
+  // const [showOnboarding, setShowOnboarding] = useState(false);
+  // useEffect(() => {
+  //   if (isSignedIn && !localStorage.getItem(ONBOARDING_KEY)) {
+  //     setShowOnboarding(true);
+  //   }
+  // }, [isSignedIn]);
+  const [showOnboarding, setShowOnboarding] = useState(true); // DEV: always show for preview
   const completeOnboarding = () => {
     localStorage.setItem(ONBOARDING_KEY, '1');
     setShowOnboarding(false);
@@ -293,6 +295,8 @@ function App() {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <StartPage prefilledSessionId={deeplinkSessionId} />
+        {/* DEV: show onboarding even on start page for preview */}
+        {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
       </div>
     );
   }
