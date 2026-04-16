@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
+import { parseJoinInput } from '../utils/parseJoinInput';
 import logo from '../assets/logo.png';
 
 export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
@@ -10,7 +11,16 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const { send } = useWebSocketStore();
   const { error, notification, showError } = useUIStore();
 
-  const [joinSessionId, setJoinSessionId] = useState(prefilledSessionId || '');
+  // Prefilled value may be a full join URL; validate & strip to the id.
+  const initialPrefill = parseJoinInput(prefilledSessionId);
+  const [joinSessionId, setJoinSessionId] = useState(initialPrefill.sessionId || '');
+
+  useEffect(() => {
+    if (initialPrefill.error) {
+      showError(initialPrefill.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSignIn = () => {
     signInWithTwitter();
@@ -21,7 +31,28 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
       showError('Please enter a session ID');
       return;
     }
-    send({ type: 'session:join', data: { sessionId: joinSessionId, username: twitterUsername || undefined } });
+    // Accept either a raw id or a full join URL. URLs must be on the allowlist.
+    const parsed = parseJoinInput(joinSessionId);
+    if (!parsed.sessionId) {
+      showError(parsed.error || 'Please enter a valid session ID');
+      return;
+    }
+    send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined } });
+  };
+
+  // If the user pastes a full join URL, auto-normalize the field to just the id.
+  const handleJoinInputChange = (value: string) => {
+    if (/^(https?:)?\/\//i.test(value.trim()) || value.includes('?join=') || value.includes('/join/')) {
+      const parsed = parseJoinInput(value);
+      if (parsed.sessionId) {
+        setJoinSessionId(parsed.sessionId);
+        return;
+      }
+      if (parsed.error) {
+        showError(parsed.error);
+      }
+    }
+    setJoinSessionId(value);
   };
 
   return (
@@ -79,7 +110,7 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
             type="text"
             placeholder="Enter Session ID"
             value={joinSessionId}
-            onChange={(e) => setJoinSessionId(e.target.value)}
+            onChange={(e) => handleJoinInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && joinSession()}
             className="flex-1 border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-white/35"
           />
@@ -93,7 +124,7 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
           )}
         </div>
         <p className="text-white/30 text-[11px] max-w-[320px] text-center">
-          Answer questions — no account needed
+          Join lobby, view questions — no account needed
         </p>
       </div>
 

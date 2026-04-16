@@ -263,9 +263,12 @@ function App() {
     return <PurchaseError />;
   }
 
-  // Deeplink: /join/:sessionId — pre-fill session and land on Lobby
+  // Deeplink: /join/:sessionId or ?join=:sessionId — pre-fill session and land on Lobby.
+  // The query-param form is what the Lobby's "Copy" button produces so the entire
+  // URL can be shared (origin + ?join=...).
   const joinMatch = pathname.match(/^\/join\/([^/]+)$/);
-  const deeplinkSessionId = joinMatch ? joinMatch[1] : null;
+  const queryJoin = new URLSearchParams(window.location.search).get('join');
+  const deeplinkSessionId = joinMatch ? joinMatch[1] : queryJoin;
 
   if (!connected) {
     return (

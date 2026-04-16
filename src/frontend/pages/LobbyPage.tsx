@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
@@ -7,6 +7,7 @@ import { useUIStore } from '../store/uiStore';
 import { useDraftStore } from '../store/draftStore';
 import { Header } from '../components/Header';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { parseJoinInput } from '../utils/parseJoinInput';
 
 export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
@@ -15,7 +16,18 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const isAuthenticated = authToken !== null;
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
-  const [joinSessionId, setJoinSessionId] = useState(prefilledSessionId || '');
+  // Prefilled value may be a full join URL; validate & strip to the id.
+  const initialPrefill = parseJoinInput(prefilledSessionId);
+  const [joinSessionId, setJoinSessionId] = useState(initialPrefill.sessionId || '');
+
+  // If the prefilled deeplink pointed at a disallowed host, surface an error
+  // once on mount so the user understands why nothing was pre-filled.
+  useEffect(() => {
+    if (initialPrefill.error) {
+      showError(initialPrefill.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [isCreating, setIsCreating] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
@@ -23,7 +35,10 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
 
   const copySessionId = () => {
     if (!sessionId) return;
-    navigator.clipboard.writeText(sessionId).then(() => {
+    // Build a shareable join URL using the current origin so it works in
+    // both development (localhost) and deployed environments automatically.
+    const shareUrl = `${window.location.origin}/?join=${encodeURIComponent(sessionId)}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -76,7 +91,28 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         showError('Please enter a session ID');
         return;
       }
-      send({ type: 'session:join', data: { sessionId: joinSessionId, username: twitterUsername || undefined } });
+      // Accept either a raw id or a full join URL. URLs must be on the allowlist.
+      const parsed = parseJoinInput(joinSessionId);
+      if (!parsed.sessionId) {
+        showError(parsed.error || 'Please enter a valid session ID');
+        return;
+      }
+      send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined } });
+    };
+
+    // If the user pastes a full join URL, auto-normalize the field to the id.
+    const handleJoinInputChange = (value: string) => {
+      if (/^(https?:)?\/\//i.test(value.trim()) || value.includes('?join=') || value.includes('/join/')) {
+        const parsed = parseJoinInput(value);
+        if (parsed.sessionId) {
+          setJoinSessionId(parsed.sessionId);
+          return;
+        }
+        if (parsed.error) {
+          showError(parsed.error);
+        }
+      }
+      setJoinSessionId(value);
     };
 
     return (
@@ -103,7 +139,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             </div>
             <input
               value={joinSessionId}
-              onChange={(e) => setJoinSessionId(e.target.value)}
+              onChange={(e) => handleJoinInputChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinSession()}
               placeholder="Have a session code? Enter it here…"
               className="flex-1 border-0 bg-transparent text-[12px] text-ink outline-none placeholder:text-ink-muted"
