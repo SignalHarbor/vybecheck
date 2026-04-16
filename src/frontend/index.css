@@ -133,6 +133,51 @@
 /* Transition page bg smoothly when toggling */
 .dark .transition-colors, .dark.transition-colors { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
 
+/* ═══════════════════════════════════════════════════════════
+   LIGHT MODE
+   The default Tailwind values produce a flat, too-white UI.
+   We pull depth from the app's navy-lavender palette:
+     page   #E8EDF8  (cool blue-grey — clearly behind cards)
+     card   #FFFFFF  (pure white — pops against the page)
+     nav    #F0F4FF  (elevated tint — separates from card content)
+   ══════════════════════════════════════════════════════════ */
+
+html:not(.dark) { color-scheme: light; }
+
+/* Page surface — deeper blue-grey so cards clearly lift off */
+html:not(.dark) .bg-surface-page { background-color: #E8EDF8 !important; }
+
+/* Cards — stay white, add a touch of shadow for lift */
+html:not(.dark) .bg-white {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 2px 16px rgba(82, 96, 168, 0.09) !important;
+}
+
+/* Borders — more visible so card edges and dividers read clearly */
+html:not(.dark) .border-border-light { border-color: #C4CADF !important; }
+
+/* Nav bar — soft lavender surface, stronger top border */
+html:not(.dark) nav {
+  background-color: #F0F4FF !important;
+  border-top-color: #C4CADF !important;
+  box-shadow: 0 -2px 12px rgba(82, 96, 168, 0.07) !important;
+}
+
+/* Inputs — slightly cooler background, visible border */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: #F3F6FC !important;
+  border-color: #C8CEDF !important;
+}
+
+/* Tints — more saturated so they read on white cards */
+html:not(.dark) .bg-tint-blue   { background-color: #DDF0FA !important; }
+html:not(.dark) .bg-tint-yellow { background-color: #FFF0C0 !important; }
+html:not(.dark) .bg-tint-pink   { background-color: #FAD8E8 !important; }
+html:not(.dark) .bg-tint-green  { background-color: #CCFADE !important; }
+html:not(.dark) .bg-tint-muted  { background-color: #E4E7F4 !important; }
+
 /* ── Keyframes ──────────────────────────────────────────── */
 @keyframes confettiBurst {
   0%   { transform: translateY(0) scale(1); opacity: 1; }
