@@ -214,7 +214,7 @@ export function VybesPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
         {/* Transaction History */}
         {showHistory && (
           <div className="mb-4 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">

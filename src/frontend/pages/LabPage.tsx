@@ -39,6 +39,9 @@ export function LabPage() {
   const [pendingPublish, setPendingPublish] = useState(false);
   const [pendingNeedsUpgrade, setPendingNeedsUpgrade] = useState(false);
   const prevSessionIdRef = useRef<string | null>(null);
+  const [showFloatingPublish, setShowFloatingPublish] = useState(false);
+  const publishButtonRef = useRef<HTMLButtonElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // AI Generation state
   const [showAISection, setShowAISection] = useState(false);
@@ -78,13 +81,26 @@ export function LabPage() {
     prevSessionIdRef.current = sessionId;
   }, [sessionId, pendingPublish, pendingNeedsUpgrade, draftQuestions, send, clearDrafts, showNotification]);
 
+  // Show floating publish FAB when top publish button scrolls out of view
+  useEffect(() => {
+    const btn = publishButtonRef.current;
+    const container = scrollContainerRef.current;
+    if (!btn || !container) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowFloatingPublish(!entry.isIntersecting),
+      { root: container, threshold: 0 }
+    );
+    observer.observe(btn);
+    return () => observer.disconnect();
+  }, [draftQuestions.length, hasActiveSession]);
+
   const addQuestionToDraft = () => {
     if (!questionPrompt.trim() || !option1.trim() || !option2.trim()) {
       showError('Please fill in all fields');
       return;
     }
     if (!ownerResponse) {
-      showError('Please select your answer to this question');
+      showError('Tap your answer below — which one would you pick?');
       return;
     }
     addDraft(questionPrompt, [option1, option2], ownerResponse);
@@ -279,9 +295,7 @@ export function LabPage() {
         pills={headerPills}
       />
 
-      <div className={`flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-        draftQuestions.length > 0 && hasActiveSession ? 'pb-[100px]' : 'pb-6'
-      }`}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
         {/* AI Generate from Audio */}
         {enableAIGeneration && (
           <>
@@ -385,37 +399,23 @@ export function LabPage() {
           </p>
 
           <div className="mb-3 grid grid-cols-2 gap-2">
-            <div
-              onClick={() => option1.trim() && setOwnerResponseState(option1)}
-              className={`rounded-xl transition-all ${
-                ownerResponse && ownerResponse === option1
-                  ? 'border-2 border-status-success bg-tint-green ring-1 ring-status-success/30'
-                  : 'border border-border-light bg-surface-page'
-              }`}
-            >
+            <div className="rounded-xl border border-border-light bg-surface-page">
               <input
                 value={option1}
                 onChange={(e) => {
                   setOption1(e.target.value);
-                  if (ownerResponse === option1) setOwnerResponseState(e.target.value);
+                  if (ownerResponse && ownerResponse === option1) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option A"
                 className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
-            <div
-              onClick={() => option2.trim() && setOwnerResponseState(option2)}
-              className={`rounded-xl transition-all ${
-                ownerResponse && ownerResponse === option2
-                  ? 'border-2 border-status-success bg-tint-green ring-1 ring-status-success/30'
-                  : 'border border-border-light bg-surface-page'
-              }`}
-            >
+            <div className="rounded-xl border border-border-light bg-surface-page">
               <input
                 value={option2}
                 onChange={(e) => {
                   setOption2(e.target.value);
-                  if (ownerResponse === option2) setOwnerResponseState(e.target.value);
+                  if (ownerResponse && ownerResponse === option2) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option B"
                 className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
@@ -423,13 +423,44 @@ export function LabPage() {
             </div>
           </div>
 
+          {/* Answer picker — only shown when both options have text */}
+          {option1.trim() && option2.trim() && (
+            <div className="mb-3 rounded-2xl border border-border-light bg-surface-page p-3">
+              <p className="mb-2 text-[11px] font-extrabold tracking-[0.6px] text-ink-muted">
+                🎯 WHICH ONE IS YOUR ANSWER?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setOwnerResponseState(option1); haptic(); }}
+                  className={`cursor-pointer rounded-xl border-0 px-3 py-3 text-[13px] font-bold transition-all text-left ${
+                    ownerResponse === option1
+                      ? 'bg-status-success text-white shadow-[0_2px_10px_rgba(34,197,94,0.35)]'
+                      : 'bg-tint-muted text-ink'
+                  }`}
+                >
+                  <span className={`mr-1.5 text-[11px] font-extrabold ${ownerResponse === option1 ? 'text-white/70' : 'text-ink-muted'}`}>A</span>
+                  {option1}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setOwnerResponseState(option2); haptic(); }}
+                  className={`cursor-pointer rounded-xl border-0 px-3 py-3 text-[13px] font-bold transition-all text-left ${
+                    ownerResponse === option2
+                      ? 'bg-status-success text-white shadow-[0_2px_10px_rgba(34,197,94,0.35)]'
+                      : 'bg-tint-muted text-ink'
+                  }`}
+                >
+                  <span className={`mr-1.5 text-[11px] font-extrabold ${ownerResponse === option2 ? 'text-white/70' : 'text-ink-muted'}`}>B</span>
+                  {option2}
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={addQuestionToDraft}
-            className={`w-full rounded-2xl border-0 py-3 text-[14px] font-bold transition-all ${
-              questionPrompt.trim()
-                ? 'cursor-pointer bg-gradient-muted text-white shadow-glow-muted'
-                : 'cursor-not-allowed bg-tint-muted text-ink-muted'
-            }`}
+            className="w-full rounded-2xl border-0 py-3 text-[14px] font-bold transition-all cursor-pointer bg-gradient-muted text-white shadow-glow-muted"
           >
             + Add to Drafts
           </button>
@@ -496,6 +527,7 @@ export function LabPage() {
               </div>
               {hasActiveSession && (
                 <button
+                  ref={publishButtonRef}
                   onClick={publishDraftQuestions}
                   className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-vybe-red/20 bg-tint-pink px-3 py-1.5 text-[12px] font-bold text-vybe-red"
                 >
@@ -584,6 +616,17 @@ export function LabPage() {
         onCancel={() => setShowClearConfirm(false)}
         confirmText="Clear all"
       />
+
+      {/* Floating publish FAB — appears when top publish button scrolls out of view */}
+      {hasActiveSession && draftQuestions.length > 0 && showFloatingPublish && (
+        <button
+          onClick={publishDraftQuestions}
+          className="absolute bottom-4 right-4 z-30 flex cursor-pointer items-center gap-2.5 rounded-full border-0 bg-gradient-red px-5 py-[13px] text-[13px] font-extrabold text-white shadow-glow-red-lg transition-all animate-slide-up"
+        >
+          <Send size={15} />
+          Publish {draftQuestions.length} Question{draftQuestions.length !== 1 ? 's' : ''}
+        </button>
+      )}
     </div>
   );
 }

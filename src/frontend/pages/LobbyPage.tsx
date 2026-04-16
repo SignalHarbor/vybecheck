@@ -88,12 +88,14 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       setIsCreating(true);
       send({ type: 'session:create', data: { username: twitterUsername || undefined } });
 
-      // 30s safety timeout — reset if server never responds
-      if (createTimeoutRef.current) clearTimeout(createTimeoutRef.current);
-      createTimeoutRef.current = setTimeout(() => {
-        setIsCreating(false);
-        showError('Session creation timed out. Please try again.');
-      }, 30000);
+      // 30s safety timeout — reset if server never responds (disabled in dev)
+      if (!import.meta.env.DEV) {
+        if (createTimeoutRef.current) clearTimeout(createTimeoutRef.current);
+        createTimeoutRef.current = setTimeout(() => {
+          setIsCreating(false);
+          showError('Session creation timed out. Please try again.');
+        }, 30000);
+      }
 
       if (draftQuestions.length > 0) {
         setTimeout(() => {
@@ -125,7 +127,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header title="Lobby" subtitle="Enter a session 🚪" pills={headerPills} />
 
-        <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
           {/* Explainer */}
           <div className="mb-4 rounded-2xl bg-tint-blue border border-vybe-blue/15 px-4 py-3">
             <p className="text-[12px] text-vybe-blue font-medium leading-[1.6] m-0">
@@ -348,7 +350,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         }
       />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
         {/* Session ID Card */}
         <div className="mb-4 rounded-2xl border border-border-light bg-white p-4 shadow-card-muted">
           <div className="flex items-center justify-between">

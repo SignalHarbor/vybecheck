@@ -339,7 +339,7 @@ function App() {
 
   // Active session banner: show when user has a session but isn't on Lobby or Quiz
   const hasActiveSession = Boolean(sessionId) && Boolean(quizState) && quizState?.status !== 'expired';
-  const onSessionPage = activePage === 'lobby' || activePage === 'quiz';
+  const onSessionPage = activePage === 'lobby' || activePage === 'quiz' || activePage === 'lab';
   const showSessionBanner = hasActiveSession && !onSessionPage;
 
   return (
@@ -368,12 +368,20 @@ function App() {
         </div>
       )}
 
-      {/* Active session sticky banner */}
+      {/* Page content — re-keyed on route change to trigger fade-in */}
+      <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
+        {activePage === 'lab' && <LabPage />}
+        {activePage === 'quiz' && <QuizPage />}
+        {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
+        {activePage === 'vybes' && <VybesPage />}
+      </div>
+
+      {/* Active session banner — in flow, sits directly above BottomNav, no overlap */}
       {showSessionBanner && (
-        <div className="absolute bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4">
+        <div className="shrink-0 px-4 py-2 bg-surface-page border-t border-border-light z-40">
           <button
             onClick={() => setActivePage(isOwner ? 'lobby' : 'quiz')}
-            className="w-full flex items-center justify-between gap-3 rounded-2xl border border-vybe-red/20 bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.1)] cursor-pointer"
+            className="w-full flex items-center justify-between gap-3 rounded-2xl border border-vybe-red/20 bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <span className="h-2 w-2 rounded-full bg-vybe-red animate-pulse shrink-0" />
@@ -386,23 +394,17 @@ function App() {
         </div>
       )}
 
-      {/* Page content — re-keyed on route change to trigger fade-in */}
-      <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
-        {activePage === 'lab' && <LabPage />}
-        {activePage === 'quiz' && <QuizPage />}
-        {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
-        {activePage === 'vybes' && <VybesPage />}
-      </div>
-
-      {/* Onboarding replay button — "?" floating above nav on Lobby */}
+      {/* Onboarding replay button — in flow, above BottomNav on Lobby */}
       {activePage === 'lobby' && !showOnboarding && (
-        <button
-          onClick={() => setShowOnboarding(true)}
-          className="absolute bottom-[calc(80px+env(safe-area-inset-bottom))] right-4 z-40 flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-white shadow-card-muted text-[13px] font-extrabold text-ink-muted cursor-pointer"
-          title="How it works"
-        >
-          ?
-        </button>
+        <div className="shrink-0 flex justify-end px-4 py-2 bg-surface-page">
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-white shadow-card-muted text-[13px] font-extrabold text-ink-muted cursor-pointer"
+            title="How it works"
+          >
+            ?
+          </button>
+        </div>
       )}
 
       <BottomNav
