@@ -40,6 +40,7 @@ export function LabPage() {
   const [pendingNeedsUpgrade, setPendingNeedsUpgrade] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [removingDraftIds, setRemovingDraftIds] = useState<Set<string>>(new Set());
+  const [newestDraftId, setNewestDraftId] = useState<string | null>(null);
   const prevSessionIdRef = useRef<string | null>(null);
   const [showFloatingPublish, setShowFloatingPublish] = useState(false);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
@@ -113,6 +114,15 @@ export function LabPage() {
     setIsEditingDraft(false);
     haptic();
     showNotification('Question added to drafts');
+    // Mark newest for entrance animation (will be last in array after state update)
+    setTimeout(() => {
+      const drafts = useDraftStore.getState().draftQuestions;
+      const newest = drafts[drafts.length - 1];
+      if (newest) {
+        setNewestDraftId(newest.id);
+        setTimeout(() => setNewestDraftId(null), 500);
+      }
+    }, 0);
   };
 
   const questionLimit = quizState?.questionLimit ?? getQuestionLimit();
@@ -554,20 +564,21 @@ export function LabPage() {
 
             <div className="flex flex-col gap-3">
               {draftQuestions.map((draft, index) => (
-                <DraftQuestionCard
-                  key={draft.id}
-                  draft={draft}
-                  index={index}
-                  onRemove={handleRemoveDraft}
-                  onSetOwnerResponse={setOwnerResponse}
-                  onEdit={handleEditDraft}
-                  isEditDisabled={hasUnsavedInput}
-                  editDisabledReason="Clear the form to edit this draft"
-                  onDragStart={handleDragStart}
-                  onDragEnter={handleDragEnter}
-                  onDragEnd={handleDragEnd}
-                  isRemoving={removingDraftIds.has(draft.id)}
-                />
+                <div key={draft.id} className={newestDraftId === draft.id ? 'animate-slide-down' : undefined}>
+                  <DraftQuestionCard
+                    draft={draft}
+                    index={index}
+                    onRemove={handleRemoveDraft}
+                    onSetOwnerResponse={setOwnerResponse}
+                    onEdit={handleEditDraft}
+                    isEditDisabled={hasUnsavedInput}
+                    editDisabledReason="Clear the form to edit this draft"
+                    onDragStart={handleDragStart}
+                    onDragEnter={handleDragEnter}
+                    onDragEnd={handleDragEnd}
+                    isRemoving={removingDraftIds.has(draft.id)}
+                  />
+                </div>
               ))}
 
               <button

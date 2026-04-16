@@ -399,7 +399,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.participantId.charCodeAt(0) * 37 + p.participantId.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
@@ -436,7 +436,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.id.charCodeAt(0) * 37 + p.id.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"

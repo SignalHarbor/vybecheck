@@ -216,9 +216,24 @@ html:not(.dark) .bg-tint-muted  { background-color: #E4E7F4 !important; }
   100% { transform: translateY(-220px) scale(0.4) rotate(360deg); opacity: 0; }
 }
 
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
 @keyframes slideUp {
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes slideFromRight {
@@ -232,5 +247,8 @@ html:not(.dark) .bg-tint-muted  { background-color: #E4E7F4 !important; }
 }
 
 .animate-slide-up          { animation: slideUp 0.25s ease-out forwards; }
+.animate-slide-down        { animation: slideDown 0.25s ease-out forwards; }
+.animate-fade-in           { animation: fadeIn 0.25s ease-out forwards; }
+.animate-shimmer           { animation: shimmer 2s ease-in-out infinite; }
 .animate-slide-from-right  { animation: slideFromRight 0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
 .animate-slide-from-left   { animation: slideFromLeft  0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
