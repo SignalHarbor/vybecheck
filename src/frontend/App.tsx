@@ -416,6 +416,7 @@ function App() {
         isAuthenticated={authToken !== null}
         hasActiveSession={hasActiveSession}
         participantCount={quizState?.participantCount}
+        onLockedTap={showNotification}
       />
 
       {/* First-time onboarding overlay */}

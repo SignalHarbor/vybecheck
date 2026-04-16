@@ -11,6 +11,7 @@ interface BottomNavProps {
   isAuthenticated: boolean;
   hasActiveSession: boolean;
   participantCount?: number;
+  onLockedTap?: (message: string) => void;
 }
 
 interface NavItem {
@@ -19,9 +20,10 @@ interface NavItem {
   icon: LucideIcon;
   badge?: number;
   locked?: boolean;
+  lockedMessage?: string;
 }
 
-export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession, participantCount }: BottomNavProps) {
+export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession, participantCount, onLockedTap }: BottomNavProps) {
   if (activePage === 'start') return null;
 
   const navItems: NavItem[] = [
@@ -37,31 +39,39 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
       icon: FlaskConical,
       badge: draftCount > 0 ? draftCount : undefined,
       locked: !isAuthenticated,
+      lockedMessage: 'Sign in to build your own quiz 🔬',
     },
     {
       id: 'quiz' as PageType,
       label: 'Quiz',
       icon: Zap,
     },
-    ...(isAuthenticated ? [{
+    {
       id: 'vybes' as PageType,
       label: 'Vybes',
       icon: Sparkles,
-    }] : []),
+      locked: !isAuthenticated,
+      lockedMessage: 'Sign in to earn and spend Vybes ✨',
+    },
   ];
 
   return (
     <nav className="shrink-0 flex items-center justify-around border-t border-border-light bg-white px-2 pt-3 pb-[calc(24px+env(safe-area-inset-bottom))] z-50">
-      {navItems.map(({ id, label, icon: Icon, badge, locked }) => {
+      {navItems.map(({ id, label, icon: Icon, badge, locked, lockedMessage }) => {
         const isActive = activePage === id;
         return (
           <button
             key={id}
-            onClick={() => !locked && onNavigate(id)}
-            title={locked ? 'Sign in to access' : undefined}
+            onClick={() => {
+              if (locked) {
+                if (lockedMessage && onLockedTap) onLockedTap(lockedMessage);
+              } else {
+                onNavigate(id);
+              }
+            }}
             className={`flex flex-col items-center gap-0.5 rounded-2xl bg-transparent border-none px-3 py-1 text-[10px] transition-all [-webkit-tap-highlight-color:transparent] ${
               locked
-                ? 'cursor-default opacity-40'
+                ? 'cursor-pointer opacity-40'
                 : 'cursor-pointer active:scale-95'
             } ${
               isActive
