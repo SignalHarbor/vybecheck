@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Radio, Sparkles, ChevronRight } from 'lucide-react';
+import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -256,6 +256,7 @@ export function QuizPage() {
 
         {/* Question Card */}
         {!isCompleted ? (
+          <>
           <div className="rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center">
             <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-5">
               <Zap size={24} strokeWidth={2} className="text-vybe-blue" />
@@ -289,6 +290,29 @@ export function QuizPage() {
               })}
             </div>
           </div>
+
+          {/* Prev / Next navigation */}
+          <div className="flex items-center justify-between gap-3 mt-4">
+            <button
+              onClick={() => setCurrentQuestionIndex(i => Math.max(0, i - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
+            >
+              <ChevronLeft size={15} strokeWidth={2.5} /> Prev
+            </button>
+            <span className="text-[12px] font-bold text-ink-muted">
+              {currentQuestionIndex + 1} / {totalQuestions}
+            </span>
+            <button
+              onClick={() => setCurrentQuestionIndex(i => Math.min(totalQuestions - 1, i + 1))}
+              disabled={currentQuestionIndex === totalQuestions - 1 || !hasAnswered}
+              className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
+            >
+              Next <ChevronRight size={15} strokeWidth={2.5} />
+            </button>
+          </div>
+          </>
+
         ) : !quizState.resultsReleased && !isOwner ? (
           <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
             <div className="w-12 h-12 bg-tint-yellow rounded-2xl flex items-center justify-center mb-5">
