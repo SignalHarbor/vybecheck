@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
+import { parseJoinInput } from '../utils/parseJoinInput';
 import logo from '../assets/logo.png';
 
-export function StartPage() {
+export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { isSigningIn, signInWithTwitter, twitterUsername } = useAuthStore();
   const { send } = useWebSocketStore();
   const { error, notification, showError } = useUIStore();
 
-  const [joinSessionId, setJoinSessionId] = useState('');
+  // Prefilled value may be a full join URL; validate & strip to the id.
+  const initialPrefill = parseJoinInput(prefilledSessionId);
+  const [joinSessionId, setJoinSessionId] = useState(initialPrefill.sessionId || '');
+
+  useEffect(() => {
+    if (initialPrefill.error) {
+      showError(initialPrefill.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSignIn = () => {
     signInWithTwitter();
@@ -21,7 +31,28 @@ export function StartPage() {
       showError('Please enter a session ID');
       return;
     }
-    send({ type: 'session:join', data: { sessionId: joinSessionId, username: twitterUsername || undefined } });
+    // Accept either a raw id or a full join URL. URLs must be on the allowlist.
+    const parsed = parseJoinInput(joinSessionId);
+    if (!parsed.sessionId) {
+      showError(parsed.error || 'Please enter a valid session ID');
+      return;
+    }
+    send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined } });
+  };
+
+  // If the user pastes a full join URL, auto-normalize the field to just the id.
+  const handleJoinInputChange = (value: string) => {
+    if (/^(https?:)?\/\//i.test(value.trim()) || value.includes('?join=') || value.includes('/join/')) {
+      const parsed = parseJoinInput(value);
+      if (parsed.sessionId) {
+        setJoinSessionId(parsed.sessionId);
+        return;
+      }
+      if (parsed.error) {
+        showError(parsed.error);
+      }
+    }
+    setJoinSessionId(value);
   };
 
   return (
@@ -29,7 +60,7 @@ export function StartPage() {
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
         <img src={logo} alt="VybeCheck Logo" className="w-[90px] h-[90px] rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.3)]" />
         <h1 className="text-[38px] font-black text-white mb-0">VybeCheck</h1>
-        <p className="text-white/50 text-[14px] -mt-1 mb-6">Your vibes on real-time debates</p>
+        <p className="text-white/50 text-[14px] -mt-1 mb-2">Live quiz matching for Twitter Spaces</p>
 
         {error && (
           <div className="w-full max-w-[320px] bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down">
@@ -61,13 +92,13 @@ export function StartPage() {
             </>
           )}
         </button>
-        <p className="text-white/35 text-[12px] max-w-[320px] text-center">
-          Sign in to create quizzes and view matches
+        <p className="text-white/35 text-[12px] max-w-[320px] text-center -mt-1 mb-2">
+          Host a session, build quizzes &amp; see your matches
         </p>
 
         <div className="flex items-center gap-3 w-full max-w-[320px] my-2">
           <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/30 text-[11px] font-bold">OR JOIN SESSION</span>
+          <span className="text-white/30 text-[11px] font-bold">OR JOIN AS PARTICIPANT</span>
           <div className="flex-1 h-px bg-white/10" />
         </div>
 
@@ -79,7 +110,7 @@ export function StartPage() {
             type="text"
             placeholder="Enter Session ID"
             value={joinSessionId}
-            onChange={(e) => setJoinSessionId(e.target.value)}
+            onChange={(e) => handleJoinInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && joinSession()}
             className="flex-1 border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-white/35"
           />
@@ -93,7 +124,7 @@ export function StartPage() {
           )}
         </div>
         <p className="text-white/30 text-[11px] max-w-[320px] text-center">
-          Join as a participant to answer questions
+          Join lobby, view questions — no account needed
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
@@ -22,7 +23,7 @@ const actionStyles = {
 } as const;
 
 export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pills }: HeaderProps) {
-  const { profileImageUrl, authToken, signOut } = useAuthStore();
+  const { profileImageUrl, authToken, signOut, vybesBalance } = useAuthStore();
   const { reset: resetQuizStore } = useQuizStore();
   const { setActivePage } = useUIStore();
   const isAuthenticated = authToken !== null;
@@ -51,6 +52,16 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
+          {isAuthenticated && (
+            <button
+              onClick={() => setActivePage('vybes')}
+              className="mt-1 flex items-center gap-1 rounded-full border border-vybe-yellow/30 bg-vybe-yellow/15 px-2.5 py-1 cursor-pointer border-none"
+              title="Your Vybes balance"
+            >
+              <Sparkles size={11} className="fill-vybe-yellow text-vybe-yellow" />
+              <span className="text-[11px] font-bold text-vybe-yellow">{vybesBalance}</span>
+            </button>
+          )}
           {actionIcon && (
             <div className={`mt-1 flex h-10.5 w-10.5 items-center justify-center rounded-2xl border ${actionStyles[actionColor]}`}>
               {actionIcon}
