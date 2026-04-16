@@ -263,6 +263,10 @@ function App() {
     return <PurchaseError />;
   }
 
+  // Deeplink: /join/:sessionId — pre-fill session and land on Lobby
+  const joinMatch = pathname.match(/^\/join\/([^/]+)$/);
+  const deeplinkSessionId = joinMatch ? joinMatch[1] : null;
+
   if (!connected) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
@@ -275,14 +279,14 @@ function App() {
   if (!isSignedIn) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
-        <StartPage />
+        <StartPage prefilledSessionId={deeplinkSessionId} />
       </div>
     );
   }
 
   // Signed-in users shouldn't be on 'start' — default based on auth status
   if (activePage === 'start') {
-    setActivePage(authToken ? 'lab' : 'quiz');
+    setActivePage(authToken ? 'lab' : 'lobby');
   }
 
   return (
@@ -305,7 +309,7 @@ function App() {
 
       {activePage === 'lab' && <LabPage />}
       {activePage === 'quiz' && <QuizPage />}
-      {activePage === 'lobby' && <LobbyPage />}
+      {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
       {activePage === 'vybes' && <VybesPage />}
 
       <BottomNav

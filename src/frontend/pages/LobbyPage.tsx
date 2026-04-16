@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, ChevronRight, Radio, Zap, XCircle } from 'lucide-react';
+import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -8,17 +8,26 @@ import { useDraftStore } from '../store/draftStore';
 import { Header } from '../components/Header';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
-export function LobbyPage() {
+export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
   const { send } = useWebSocketStore();
   const { twitterUsername, authToken, signInWithTwitter } = useAuthStore();
   const isAuthenticated = authToken !== null;
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
-  const [joinSessionId, setJoinSessionId] = useState('');
+  const [joinSessionId, setJoinSessionId] = useState(prefilledSessionId || '');
   const [isCreating, setIsCreating] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copySessionId = () => {
+    if (!sessionId) return;
+    navigator.clipboard.writeText(sessionId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const headerPills = (
     <>
@@ -72,9 +81,21 @@ export function LobbyPage() {
 
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
-        <Header title="Lobby" subtitle="Find your vybe 🎯" pills={headerPills} />
+        <Header title="Lobby" subtitle="Enter a session 🚪" pills={headerPills} />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Explainer */}
+          <div className="mb-4 rounded-2xl bg-tint-blue border border-vybe-blue/15 px-4 py-3">
+            <p className="text-[12px] text-vybe-blue font-medium leading-[1.6] m-0">
+              <span className="font-extrabold">Join</span> a live Twitter Space quiz with a session code, or <span className="font-extrabold">create</span> your own session as a host.
+            </p>
+          </div>
+
+          {/* Section: Join */}
+          <div className="mb-1 flex items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-blue" />
+            <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-blue">JOIN A SESSION</p>
+          </div>
           {/* Session code join */}
           <div className="mb-4 flex items-center gap-2.5 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white px-4 py-3">
             <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
@@ -99,11 +120,16 @@ export function LobbyPage() {
 
           {/* Create session card */}
           {isAuthenticated && (
-            <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
+            <>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">HOST A SESSION</p>
+              </div>
+              <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
               <div className="pointer-events-none absolute -top-[30px] -right-5 h-[110px] w-[110px] rounded-full bg-[radial-gradient(circle,rgba(83,157,192,0.1)_0%,transparent_70%)]" />
               <div className="relative">
                 <div className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-2xl bg-tint-blue">
-                  <Radio size={22} strokeWidth={2.2} className="text-vybe-blue" />
+                  <DoorOpen size={22} strokeWidth={2.2} className="text-vybe-blue" />
                 </div>
                 <h2 className="mb-[5px] text-[17px] font-extrabold text-ink">Create a Session</h2>
                 <p className="mb-4 text-[13px] leading-[1.6] text-ink-muted">
@@ -114,7 +140,7 @@ export function LobbyPage() {
                   disabled={isCreating}
                   className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-red py-3 text-[14px] font-bold text-white shadow-glow-red disabled:opacity-50"
                 >
-                  <Radio size={15} />
+                  <DoorOpen size={15} />
                   {isCreating ? 'Creating...' : draftQuestions.length > 0
                     ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''})`
                     : 'Create New Session'}
@@ -126,6 +152,7 @@ export function LobbyPage() {
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* Guest sign-in */}
@@ -230,9 +257,23 @@ export function LobbyPage() {
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
               <p className="mt-1 font-mono text-[15px] font-bold tracking-wider text-ink">{sessionId}</p>
             </div>
-            <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
-              <Radio size={10} className="text-ink-muted" />
-              <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copySessionId}
+                title="Copy session ID"
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all ${
+                  copied
+                    ? 'border-status-success/30 bg-tint-green text-status-success-dark'
+                    : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
+                }`}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
+                <DoorOpen size={10} className="text-ink-muted" />
+                <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
+              </div>
             </div>
           </div>
         </div>
