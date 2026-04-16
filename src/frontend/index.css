@@ -71,44 +71,71 @@
 .dark {
   color-scheme: dark;
 
-  /* surfaces */
-  --color-surface-page:  #0E1020;
-  --color-surface-card:  #15182A;
-  --color-surface-header: #12111E;
+  /* surfaces — clear visual hierarchy: page < card < tint */
+  --color-surface-page:    #0B0C1A;
+  --color-surface-card:    #15182A;
+  --color-surface-header:  #12111E;
 
-  /* text */
-  --color-ink:       #E8EAF6;
-  --color-ink-muted: #8B92B8;
+  /* text — high contrast */
+  --color-ink:       #EEF0FA;   /* near-white primary text */
+  --color-ink-muted: #A8B0D0;   /* muted but visible, not harsh */
 
   /* borders */
-  --color-border-light: #252840;
+  --color-border-light: #2E3360;
 
-  /* tints — darkened versions */
-  --color-tint-muted:  #1C1F38;
-  --color-tint-blue:   #0D2130;
-  --color-tint-yellow: #211B00;
-  --color-tint-pink:   #220C15;
-  --color-tint-green:  #0A2012;
+  /* tints — must be distinctly lighter than the card bg (#1A1D35)
+     so icon boxes, step guides, and progress tracks are visible    */
+  --color-tint-muted:  #252A4A;
+  --color-tint-blue:   #0C2540;
+  --color-tint-yellow: #2A2000;
+  --color-tint-pink:   #280C18;
+  --color-tint-green:  #0C2418;
+
+  /* gold (#9A7200 is near-black on dark) — use bright amber instead */
+  --color-vybe-gold: #E8A830;
+
+  /* status */
+  --color-status-success: #34D464;
 }
 
-/* bg-white is a CSS keyword (not a custom property), remap it in dark mode */
+/* Cards float above the page — lighter than the page bg */
 .dark .bg-white {
-  background-color: #1C1F38 !important;
+  background-color: #1A1D35 !important;
 }
 
-/* Keep nav/card shadow visible in dark */
+/* Nav bar — slightly elevated surface */
 .dark nav {
-  border-top-color: #252840;
-  background-color: #15182A;
+  border-top-color: #2E3360;
+  background-color: #141728;
 }
 
-/* Inputs in dark mode */
+/* Tint overrides — explicit to ensure specificity over any utility class */
+.dark .bg-tint-blue   { background-color: #0C2540 !important; }
+.dark .bg-tint-yellow { background-color: #2A2000 !important; }
+.dark .bg-tint-pink   { background-color: #280C18 !important; }
+.dark .bg-tint-green  { background-color: #0C2418 !important; }
+.dark .bg-tint-muted  { background-color: #252A4A !important; }
+
+/* surface-page utility */
+.dark .bg-surface-page { background-color: #0B0C1A !important; }
+
+/* Inputs */
 .dark input,
 .dark textarea,
 .dark select {
-  background: #1C1F38;
-  border-color: #252840;
-  color: #E8EAF6;
+  background: #1A1D35;
+  border-color: #2E3360;
+  color: #EEF0FA;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6870A0;
+}
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #539DC0;
+  box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.2);
 }
 
 /* ── Keyframes ──────────────────────────────────────────── */
