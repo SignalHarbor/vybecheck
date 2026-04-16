@@ -141,6 +141,12 @@
   border-color: #2E3360 !important;
   color: #EEF0FA !important;
 }
+/* Inline transparent inputs (e.g. inside cards) keep transparent bg */
+.dark input.bg-transparent,
+.dark textarea.bg-transparent {
+  background-color: transparent !important;
+  color: #EEF0FA !important;
+}
 .dark input::placeholder,
 .dark textarea::placeholder { color: #6870A0 !important; }
 .dark input:focus,
@@ -190,6 +196,14 @@ html:not(.dark) textarea,
 html:not(.dark) select {
   background-color: #F3F6FC !important;
   border-color: #C8CEDF !important;
+  color: #1A1D35 !important;
+}
+/* Inline transparent inputs inside cards keep transparent bg */
+html:not(.dark) input.bg-transparent,
+html:not(.dark) textarea.bg-transparent {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: #1A1D35 !important;
 }
 
 /* Tints — more saturated so they read on white cards */
