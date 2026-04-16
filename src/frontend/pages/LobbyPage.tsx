@@ -519,10 +519,16 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             )}
 
             {(isActive || isExpired) && quizState.resultsReleased && (
-              <div className="py-3 px-4 bg-tint-green rounded-2xl border border-status-success/20 text-center">
-                <span className="text-[13px] font-bold text-status-success-dark">
+              <div className="rounded-2xl border border-status-success/20 bg-tint-green px-4 py-3">
+                <p className="m-0 mb-2.5 text-center text-[13px] font-bold text-status-success-dark">
                   ✅ Results released — participants can view matches
-                </span>
+                </p>
+                <button
+                  onClick={() => setActivePage('quiz')}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-0 bg-status-success py-2.5 text-[13px] font-bold text-white cursor-pointer active:scale-[0.97] transition-all"
+                >
+                  View my matches →
+                </button>
               </div>
             )}
           </div>
