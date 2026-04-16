@@ -380,10 +380,6 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 <Share2 size={12} />
                 Share
               </button>
-              <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
-                <DoorOpen size={10} className="text-ink-muted" />
-                <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
-              </div>
             </div>
           </div>
         </div>
