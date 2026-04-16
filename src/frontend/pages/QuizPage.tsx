@@ -145,6 +145,16 @@ export function QuizPage() {
 
   // No active session
   if (!sessionId || !quizState) {
+    // DEV DEMO: toggle to preview match cards
+    // TODO: REMOVE BEFORE PUBLISHING
+    const [showMatchDemo, setShowMatchDemo] = (useState as typeof useState<boolean>)(false);
+    const demoMatches = [
+      { participantId: 'abc123def456', username: 'kingnoble_',   matchPercentage: 92 },
+      { participantId: 'xyz789ghi012', username: 'signalharbor', matchPercentage: 74 },
+      { participantId: 'mno345pqr678', username: 'vybemaster',   matchPercentage: 55 },
+      { participantId: 'stu901vwx234', username: 'lowvybe_dev',  matchPercentage: 31 },
+    ];
+
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header
@@ -156,6 +166,31 @@ export function QuizPage() {
         />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* DEV: Match ring demo */}
+          <div className="mb-4 rounded-2xl border border-dashed border-vybe-yellow/40 bg-tint-yellow px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-[12px] font-bold text-vybe-gold">🎨 DEV: Match ring preview</p>
+            <button
+              onClick={() => setShowMatchDemo(v => !v)}
+              className="rounded-xl bg-vybe-yellow/30 px-3 py-1 text-[11px] font-extrabold text-vybe-gold cursor-pointer border-0"
+            >
+              {showMatchDemo ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          {showMatchDemo && (
+            <div className="mb-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">DEMO MATCHES</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {demoMatches.map((m, i) => (
+                  <MatchCard key={m.participantId} match={m} rank={i + 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
             <div className="pointer-events-none absolute -top-[30px] -right-5 h-[110px] w-[110px] rounded-full bg-[radial-gradient(circle,rgba(83,157,192,0.1)_0%,transparent_70%)]" />
             <div className="relative">
