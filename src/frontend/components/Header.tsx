@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Sparkles } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { Sparkles, Moon, Sun, Radio, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
@@ -24,8 +24,8 @@ const actionStyles = {
 
 export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pills }: HeaderProps) {
   const { profileImageUrl, authToken, signOut, vybesBalance } = useAuthStore();
-  const { reset: resetQuizStore } = useQuizStore();
-  const { setActivePage } = useUIStore();
+  const { reset: resetQuizStore, sessionId, quizState } = useQuizStore();
+  const { setActivePage, isDarkMode, toggleDarkMode } = useUIStore();
   const isAuthenticated = authToken !== null;
 
   const handleSignOut = () => {
@@ -52,6 +52,46 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Session status chip — shown when there's an active session */}
+          {sessionId && quizState && (
+            <div className={`mt-1 flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+              quizState.status === 'active'
+                ? 'border-vybe-red/30 bg-vybe-red/15'
+                : quizState.status === 'expired'
+                  ? 'border-ink-muted/25 bg-ink-muted/15'
+                  : 'border-vybe-yellow/30 bg-vybe-yellow/15'
+            }`}>
+              {quizState.status === 'active' && (
+                <>
+                  <Radio size={9} className="text-vybe-red animate-pulse" />
+                  <span className="text-[10px] font-bold text-vybe-red">Live</span>
+                </>
+              )}
+              {quizState.status === 'live' && (
+                <>
+                  <Clock size={9} className="text-vybe-yellow" />
+                  <span className="text-[10px] font-bold text-vybe-yellow">In Lobby</span>
+                </>
+              )}
+              {quizState.status === 'expired' && (
+                <>
+                  <CheckCircle size={9} className="text-ink-muted" />
+                  <span className="text-[10px] font-bold text-ink-muted">Ended</span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className="mt-1 flex h-7.5 w-7.5 items-center justify-center rounded-xl border border-white/15 bg-white/10 cursor-pointer"
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDarkMode
+              ? <Sun size={13} className="text-vybe-yellow" />
+              : <Moon size={13} className="text-white/60" />}
+          </button>
           {isAuthenticated && (
             <button
               onClick={() => setActivePage('vybes')}

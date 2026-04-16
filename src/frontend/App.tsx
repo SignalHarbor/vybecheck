@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { ServerMessage } from '../shared/types';
 import { useWebSocketStore } from './store/websocketStore';
 import { useAuthStore } from './store/authStore';
@@ -23,8 +23,39 @@ function App() {
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
   const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, quizState, reset: resetQuizStore } = useQuizStore();
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
-  const { activePage, setActivePage, notification, error, showNotification, showError } = useUIStore();
+  const { activePage, setActivePage, notification, error, info, showNotification, showError, showInfo, clearNotification, clearError, clearInfo } = useUIStore();
   const { draftQuestions } = useDraftStore();
+
+  // Scroll position memory — restore per-tab scroll on tab switch
+  const scrollRefs = useRef<Partial<Record<string, number>>>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollContainerRef.current?.querySelector('[data-scroll-container]') as HTMLElement | null;
+    if (el) {
+      el.scrollTop = scrollRefs.current[activePage] ?? 0;
+    }
+  }, [activePage]);
+  const handleScrollSave = (page: string, top: number) => {
+    scrollRefs.current[page] = top;
+  };
+
+  // Tab slide direction — tracks nav order to slide left/right
+  const PAGE_ORDER: Record<string, number> = { lobby: 0, lab: 1, quiz: 2, vybes: 3 };
+  const prevPageRef = useRef(activePage);
+  const slideDir = useRef<'right' | 'left'>('right');
+  if (prevPageRef.current !== activePage) {
+    slideDir.current = (PAGE_ORDER[activePage] ?? 0) >= (PAGE_ORDER[prevPageRef.current] ?? 0) ? 'right' : 'left';
+    prevPageRef.current = activePage;
+  }
+
+  // Connection timeout — escalating messages
+  const [connectMessage, setConnectMessage] = useState('Connecting to server...');
+  useEffect(() => {
+    if (connected) { setConnectMessage('Connecting to server...'); return; }
+    const t1 = setTimeout(() => setConnectMessage('Taking a little longer than usual…'), 8000);
+    const t2 = setTimeout(() => setConnectMessage('Having trouble connecting. Try refreshing.'), 22000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [connected]);
 
   // Onboarding — shown once per user on first sign-in
   // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
@@ -295,7 +326,7 @@ function App() {
   if (!connected) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
-        <LoadingScreen message="Connecting to server..." />
+        <LoadingScreen message={connectMessage} />
       </div>
     );
   }
@@ -311,35 +342,66 @@ function App() {
     );
   }
 
+
+  // Signed-in users shouldn't be on 'start' — default to Lobby
+  if (activePage === 'start') {
+    setActivePage('lobby');
+  }
+
   // Active session banner: show when user has a session but isn't on Lobby or Quiz
   const hasActiveSession = Boolean(sessionId) && Boolean(quizState) && quizState?.status !== 'expired';
-  const onSessionPage = activePage === 'lobby' || activePage === 'quiz';
+  const onSessionPage = activePage === 'lobby' || activePage === 'quiz' || activePage === 'lab';
   const showSessionBanner = hasActiveSession && !onSessionPage;
 
   return (
-    <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans">
-      {/* Fixed toast notifications */}
-      {(notification || error) && (
-        <div className="absolute top-16 left-0 right-0 z-50 px-4 pointer-events-none">
+    <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans transition-colors duration-300">
+      {/* Fixed toast notifications — bottom of screen above nav */}
+      {(notification || error || info) && (
+        <div className="absolute bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
-            <div className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down pointer-events-auto">
+            <div
+              onClick={clearNotification}
+              className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
               {notification}
             </div>
           )}
           {error && (
-            <div className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down pointer-events-auto">
+            <div
+              onClick={clearError}
+              className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
               {error}
+            </div>
+          )}
+          {info && (
+            <div
+              onClick={clearInfo}
+              className="bg-ink text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.25)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
+              {info}
             </div>
           )}
         </div>
       )}
 
-      {/* Active session sticky banner */}
+      {/* Page content — re-keyed on route change to trigger fade-in */}
+      <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
+        {activePage === 'lab' && <LabPage />}
+        {activePage === 'quiz' && <QuizPage />}
+        {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
+        {activePage === 'vybes' && <VybesPage />}
+      </div>
+
+      {/* Active session banner — in flow, sits directly above BottomNav, no overlap */}
       {showSessionBanner && (
-        <div className="absolute bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4">
+        <div className="shrink-0 px-4 py-2 bg-surface-page border-t border-border-light z-40">
           <button
             onClick={() => setActivePage(isOwner ? 'lobby' : 'quiz')}
-            className="w-full flex items-center justify-between gap-3 rounded-2xl border border-vybe-red/20 bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.1)] cursor-pointer"
+            className="w-full flex items-center justify-between gap-3 rounded-2xl border border-vybe-red/20 bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <span className="h-2 w-2 rounded-full bg-vybe-red animate-pulse shrink-0" />
@@ -352,10 +414,18 @@ function App() {
         </div>
       )}
 
-      {activePage === 'lab' && <LabPage />}
-      {activePage === 'quiz' && <QuizPage />}
-      {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
-      {activePage === 'vybes' && <VybesPage />}
+      {/* Onboarding replay button — in flow, above BottomNav on Lobby */}
+      {activePage === 'lobby' && !showOnboarding && (
+        <div className="shrink-0 flex justify-end px-4 py-2 bg-surface-page">
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-border-light bg-white shadow-card-muted text-[13px] font-extrabold text-ink-muted cursor-pointer"
+            title="How it works"
+          >
+            ?
+          </button>
+        </div>
+      )}
 
       <BottomNav
         activePage={activePage}
@@ -365,6 +435,8 @@ function App() {
         draftCount={draftQuestions.length}
         isAuthenticated={authToken !== null}
         hasActiveSession={hasActiveSession}
+        participantCount={quizState?.participantCount}
+        onLockedTap={showInfo}
       />
 
       {/* First-time onboarding overlay */}

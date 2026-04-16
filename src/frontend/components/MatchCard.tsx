@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type { MatchResult } from '../../shared/types';
 
 interface MatchCardProps {
@@ -21,8 +22,26 @@ const CX = 20;
 const CIRC = 2 * Math.PI * R;
 
 export function MatchCard({ match, rank }: MatchCardProps) {
-  const pct     = Math.min(100, Math.max(0, match.matchPercentage));
-  const colors  = ringColor(pct);
+  const targetPct = Math.min(100, Math.max(0, match.matchPercentage));
+  const [animatedPct, setAnimatedPct] = useState(0);
+
+  // Count-up from 0 to targetPct on mount
+  useEffect(() => {
+    const duration = 800;
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setAnimatedPct(eased * targetPct);
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [targetPct]);
+
+  const pct     = animatedPct;
+  const colors  = ringColor(targetPct); // use target for color decision
   const filled  = (pct / 100) * CIRC;
   const gap     = CIRC - filled;
 
@@ -33,8 +52,12 @@ export function MatchCard({ match, rank }: MatchCardProps) {
 
   return (
     <div
-      className="flex items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-[0_2px_12px_rgba(99,104,140,0.07)] transition-all active:scale-[0.98]"
-      style={{ borderColor: `${colors.stroke}30` }}
+      className="flex items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-[0_2px_12px_rgba(99,104,140,0.07)] transition-all active:scale-[0.98] animate-fade-in"
+      style={{
+        borderColor: `${colors.stroke}30`,
+        animationDelay: `${(rank - 1) * 80}ms`,
+        animationFillMode: 'both',
+      }}
     >
       {/* Rank medal or number */}
       <div className="shrink-0 w-6 text-center">
@@ -73,7 +96,6 @@ export function MatchCard({ match, rank }: MatchCardProps) {
             fill="none"
             strokeLinecap="round"
             strokeDasharray={`${filled} ${gap}`}
-            style={{ transition: 'stroke-dasharray 0.8s ease' }}
           />
         </svg>
         {/* Percentage label in the middle */}
@@ -82,7 +104,7 @@ export function MatchCard({ match, rank }: MatchCardProps) {
             className="text-[9px] font-extrabold leading-none"
             style={{ color: colors.textColor }}
           >
-            {Math.round(pct)}%
+            {Math.round(animatedPct)}%
           </span>
         </div>
       </div>
