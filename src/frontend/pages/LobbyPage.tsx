@@ -509,7 +509,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               >
                 {quizState.questions.length === 0
                   ? 'Add questions in Lab first'
-                  : `▶ Start Session (${quizState.questions.length} Q)`}
+                  : `▶ Start Session (${quizState.questions.length} Question${quizState.questions.length !== 1 ? 's' : ''})`}
               </button>
             )}
 
