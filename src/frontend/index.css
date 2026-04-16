@@ -62,81 +62,76 @@
   }
 }
 
-/* ── Dark Mode ───────────────────────────────────────────── */
-/*
-   Tailwind v4 exposes design tokens as CSS custom properties.
-   Overriding them here flips every component that uses these
-   tokens without touching individual component files.
-*/
-.dark {
-  color-scheme: dark;
+/* ═══════════════════════════════════════════════════════════
+   DARK MODE
+   Strategy: Tailwind v4 compiles color tokens as OKLCH channel
+   tuples so CSS-variable overrides alone don't fix utility
+   classes like `text-ink`. We use explicit class selectors with
+   !important to guarantee every colour adapts correctly.
+   ══════════════════════════════════════════════════════════ */
 
-  /* surfaces — clear visual hierarchy: page < card < tint */
-  --color-surface-page:    #0B0C1A;
-  --color-surface-card:    #15182A;
-  --color-surface-header:  #12111E;
+.dark { color-scheme: dark; }
 
-  /* text — high contrast */
-  --color-ink:       #EEF0FA;   /* near-white primary text */
-  --color-ink-muted: #A8B0D0;   /* muted but visible, not harsh */
+/* ── Text ─────────────────────────────────────────────────── */
+.dark .text-ink          { color: #EEF0FA !important; }
+.dark .text-ink-muted    { color: #B0B8D8 !important; }
+.dark .text-vybe-gold    { color: #E8A830 !important; }  /* was #9A7200 (near-black) */
+.dark .text-vybe-red     { color: #F14573 !important; }
+.dark .text-vybe-blue    { color: #5DB5D8 !important; }
+.dark .text-vybe-yellow  { color: #FEC539 !important; }
+.dark .text-vybe-purple  { color: #8B90B8 !important; }
+.dark .text-status-success-dark { color: #22D46A !important; }
+.dark .text-status-success      { color: #34D464 !important; }
 
-  /* borders */
-  --color-border-light: #2E3360;
+/* White text at reduced opacity → keep white, it's on dark headers */
+/* (text-white/* classes are on gradient-header areas — already readable) */
 
-  /* tints — must be distinctly lighter than the card bg (#1A1D35)
-     so icon boxes, step guides, and progress tracks are visible    */
-  --color-tint-muted:  #252A4A;
-  --color-tint-blue:   #0C2540;
-  --color-tint-yellow: #2A2000;
-  --color-tint-pink:   #280C18;
-  --color-tint-green:  #0C2418;
+/* ── Backgrounds ─────────────────────────────────────────── */
+/* Page surface */
+.dark .bg-surface-page   { background-color: #0B0C1A !important; }
 
-  /* gold (#9A7200 is near-black on dark) — use bright amber instead */
-  --color-vybe-gold: #E8A830;
+/* Cards (bg-white) float above the page */
+.dark .bg-white          { background-color: #1A1D35 !important; }
 
-  /* status */
-  --color-status-success: #34D464;
-}
+/* Tints — must clearly contrast with card bg #1A1D35 */
+.dark .bg-tint-blue      { background-color: #0C2845 !important; }
+.dark .bg-tint-yellow    { background-color: #2E2200 !important; }
+.dark .bg-tint-pink      { background-color: #2C0E1C !important; }
+.dark .bg-tint-green     { background-color: #0A2618 !important; }
+.dark .bg-tint-muted     { background-color: #22273D !important; }
 
-/* Cards float above the page — lighter than the page bg */
-.dark .bg-white {
-  background-color: #1A1D35 !important;
-}
+/* Brand alpha tints used on dark cards — boost opacity */
+/* e.g. bg-vybe-red/10, bg-vybe-blue/12, bg-vybe-yellow/18  */
+/* These use rgba so we can't target them directly — handled
+   by surrounding .bg-white card being dark enough         */
 
-/* Nav bar — slightly elevated surface */
-.dark nav {
-  border-top-color: #2E3360;
-  background-color: #141728;
-}
+/* Nav bar */
+.dark nav                { background-color: #141728 !important;
+                           border-top-color: #2A2E52 !important; }
 
-/* Tint overrides — explicit to ensure specificity over any utility class */
-.dark .bg-tint-blue   { background-color: #0C2540 !important; }
-.dark .bg-tint-yellow { background-color: #2A2000 !important; }
-.dark .bg-tint-pink   { background-color: #280C18 !important; }
-.dark .bg-tint-green  { background-color: #0C2418 !important; }
-.dark .bg-tint-muted  { background-color: #252A4A !important; }
+/* ── Borders ─────────────────────────────────────────────── */
+.dark .border-border-light { border-color: #2E3360 !important; }
 
-/* surface-page utility */
-.dark .bg-surface-page { background-color: #0B0C1A !important; }
-
-/* Inputs */
+/* ── Inputs ──────────────────────────────────────────────── */
 .dark input,
 .dark textarea,
 .dark select {
-  background: #1A1D35;
-  border-color: #2E3360;
-  color: #EEF0FA;
+  background-color: #1A1D35 !important;
+  border-color: #2E3360 !important;
+  color: #EEF0FA !important;
 }
 .dark input::placeholder,
-.dark textarea::placeholder {
-  color: #6870A0;
-}
+.dark textarea::placeholder { color: #6870A0 !important; }
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  border-color: #539DC0;
-  box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.2);
+  border-color: #539DC0 !important;
+  box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.22) !important;
 }
+
+/* ── Misc ────────────────────────────────────────────────── */
+/* Transition page bg smoothly when toggling */
+.dark .transition-colors, .dark.transition-colors { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
 
 /* ── Keyframes ──────────────────────────────────────────── */
 @keyframes confettiBurst {
