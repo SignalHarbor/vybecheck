@@ -221,6 +221,16 @@ html:not(.dark) .bg-tint-muted  { background-color: #E4E7F4 !important; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-.animate-slide-up {
-  animation: slideUp 0.25s ease-out forwards;
+@keyframes slideFromRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
+
+@keyframes slideFromLeft {
+  from { transform: translateX(-40px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.animate-slide-up          { animation: slideUp 0.25s ease-out forwards; }
+.animate-slide-from-right  { animation: slideFromRight 0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+.animate-slide-from-left   { animation: slideFromLeft  0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }

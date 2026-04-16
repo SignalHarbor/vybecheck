@@ -35,6 +35,7 @@ export function LabPage() {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showCreateSessionDialog, setShowCreateSessionDialog] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(false);
   const [pendingNeedsUpgrade, setPendingNeedsUpgrade] = useState(false);
   const prevSessionIdRef = useRef<string | null>(null);
@@ -220,14 +221,15 @@ export function LabPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         data = JSON.parse(cached);
       } else {
-        setGenerationStatus('Transcribing audio (this may take a moment)...');
+        setGenerationStatus('Step 1/3: Uploading audio…');
         const res = await fetch('/api/ai/generate-from-test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: selectedFile, count: 5 }),
         });
+        setGenerationStatus('Step 2/3: Transcribing audio…');
         if (!res.ok) { const errData = await res.json(); throw new Error(errData.error || 'Generation failed'); }
-        setGenerationStatus('Generating questions...');
+        setGenerationStatus('Step 3/3: Generating questions…');
         data = await res.json();
         localStorage.setItem(cacheKey, JSON.stringify(data));
       }
@@ -318,7 +320,20 @@ export function LabPage() {
                   })}
                 </select>
                 {generationStatus && (
-                  <p className="text-[11px] text-vybe-blue mb-3 animate-pulse font-bold">{generationStatus}</p>
+                  <div className="mb-3">
+                    <p className="text-[11px] text-vybe-blue animate-pulse font-bold mb-1.5">{generationStatus}</p>
+                    {/* 3-step progress dots */}
+                    {(() => {
+                      const step = generationStatus.startsWith('Step 1') ? 1 : generationStatus.startsWith('Step 2') ? 2 : generationStatus.startsWith('Step 3') ? 3 : 0;
+                      return step > 0 ? (
+                        <div className="flex gap-1.5">
+                          {[1,2,3].map(s => (
+                            <div key={s} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${s <= step ? 'bg-vybe-blue' : 'bg-tint-muted'}`} />
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
                 )}
                 <button
                   onClick={handleAIGenerate}
@@ -362,8 +377,12 @@ export function LabPage() {
             onChange={(e) => setQuestionPrompt(e.target.value)}
             placeholder="Ask something worth answering…"
             rows={3}
-            className="mb-2 box-border w-full resize-none rounded-xl border border-border-light bg-surface-page px-[14px] py-[10px] text-[14px] leading-[1.5] text-ink outline-none placeholder:text-ink-muted"
+            maxLength={200}
+            className="mb-1 box-border w-full resize-none rounded-xl border border-border-light bg-surface-page px-[14px] py-[10px] text-[14px] leading-[1.5] text-ink outline-none placeholder:text-ink-muted"
           />
+          <p className={`mb-2 text-right text-[11px] font-semibold ${questionPrompt.length >= 180 ? 'text-vybe-red' : 'text-ink-muted'}`}>
+            {questionPrompt.length} / 200
+          </p>
 
           <div className="mb-3 grid grid-cols-2 gap-2">
             <div
@@ -504,7 +523,7 @@ export function LabPage() {
               ))}
 
               <button
-                onClick={() => clearDrafts()}
+                onClick={() => setShowClearConfirm(true)}
                 className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-tint-pink bg-white py-2.5 text-[13px] font-semibold text-vybe-red"
               >
                 <Trash2 size={14} />
@@ -556,6 +575,14 @@ export function LabPage() {
         onConfirm={confirmUpgradeAndPublish}
         onCancel={() => setShowUpgradeDialog(false)}
         confirmText={vybesBalance >= QUESTION_LIMIT_UPGRADE_COST ? `Upgrade & Publish (${QUESTION_LIMIT_UPGRADE_COST} ✨)` : 'Get Vybes →'}
+      />
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear all drafts?"
+        message="This will permanently delete all your draft questions. This cannot be undone."
+        onConfirm={() => { clearDrafts(); setShowClearConfirm(false); }}
+        onCancel={() => setShowClearConfirm(false)}
+        confirmText="Clear all"
       />
     </div>
   );

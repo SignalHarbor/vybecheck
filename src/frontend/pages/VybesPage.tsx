@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, History, Lock, Zap } from 'lucide-react';
+import { Sparkles, History, Lock, Zap, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
 import { SkeletonRow } from '../components/SkeletonCard';
 import { useFeatures } from '../utils/features';
+import { useCountUp } from '../utils/useCountUp';
 import type { LedgerEntry } from '../../shared/types';
 
 const REASON_LABELS: Record<string, string> = {
@@ -38,6 +39,10 @@ export function VybesPage() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [balanceError, setBalanceError] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+
+  const displayBalance = useCountUp(vybesBalance, 900);
 
   const [adminIssueId, setAdminIssueId] = useState('');
   const [adminIssueAmount, setAdminIssueAmount] = useState('20');
@@ -49,14 +54,15 @@ export function VybesPage() {
   const fetchBalance = useCallback(async () => {
     if (!accountId) return;
     setIsLoadingBalance(true);
+    setBalanceError(false);
     try {
       const response = await fetch(`/api/vybes/balance?participantId=${encodeURIComponent(accountId)}`);
       if (response.ok) {
         const data = await response.json();
         setVybesBalance(data.balance);
-      }
-    } catch (err) {
-      console.error('Failed to fetch balance:', err);
+      } else { setBalanceError(true); }
+    } catch {
+      setBalanceError(true);
     } finally {
       setIsLoadingBalance(false);
     }
@@ -65,14 +71,15 @@ export function VybesPage() {
   const fetchHistory = useCallback(async () => {
     if (!accountId) return;
     setIsLoadingHistory(true);
+    setHistoryError(false);
     try {
       const response = await fetch(`/api/vybes/history?participantId=${encodeURIComponent(accountId)}`);
       if (response.ok) {
         const data = await response.json();
         setTransactionHistory(data.transactions);
-      }
-    } catch (err) {
-      console.error('Failed to fetch history:', err);
+      } else { setHistoryError(true); }
+    } catch {
+      setHistoryError(true);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -164,10 +171,18 @@ export function VybesPage() {
           <div className="mb-3 flex items-end gap-2">
             <Sparkles size={30} className="fill-vybe-yellow text-vybe-yellow" />
             <span className="text-[52px] leading-none font-black text-white">
-              {isLoadingBalance ? '…' : vybesBalance}
+              {isLoadingBalance ? '…' : displayBalance}
             </span>
             <span className="mb-1.5 text-[20px] font-bold text-vybe-yellow">Vybes</span>
           </div>
+          {balanceError && (
+            <button
+              onClick={fetchBalance}
+              className="mb-2 flex items-center gap-1.5 text-[12px] text-vybe-red font-semibold"
+            >
+              <RefreshCw size={12} /> Failed to load balance — tap to retry
+            </button>
+          )}
 
           {/* Last transaction inline */}
           {transactionHistory.length > 0 && (
@@ -209,6 +224,16 @@ export function VybesPage() {
                 <SkeletonRow />
                 <SkeletonRow />
                 <SkeletonRow />
+              </div>
+            ) : historyError ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <p className="text-[13px] text-vybe-red font-semibold">Failed to load history</p>
+                <button
+                  onClick={fetchHistory}
+                  className="flex items-center gap-1.5 rounded-full bg-tint-muted px-4 py-2 text-[12px] font-bold text-ink active:scale-95 transition-transform"
+                >
+                  <RefreshCw size={12} /> Retry
+                </button>
               </div>
             ) : transactionHistory.length === 0 ? (
               <div className="flex flex-col items-center gap-2.5 py-6 text-center">

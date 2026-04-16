@@ -27,6 +27,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const [joinSubmitted, setJoinSubmitted] = useState(false);
   const joinInputRef = useRef<HTMLInputElement>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const createTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -39,6 +40,12 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  // Clear the create-session timeout as soon as sessionId is received
+  if (sessionId && createTimeoutRef.current) {
+    clearTimeout(createTimeoutRef.current);
+    createTimeoutRef.current = null;
+  }
 
   const shareSession = async () => {
     if (!sessionId) return;
@@ -80,6 +87,13 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
     const handleCreateSession = () => {
       setIsCreating(true);
       send({ type: 'session:create', data: { username: twitterUsername || undefined } });
+
+      // 30s safety timeout — reset if server never responds
+      if (createTimeoutRef.current) clearTimeout(createTimeoutRef.current);
+      createTimeoutRef.current = setTimeout(() => {
+        setIsCreating(false);
+        showError('Session creation timed out. Please try again.');
+      }, 30000);
 
       if (draftQuestions.length > 0) {
         setTimeout(() => {

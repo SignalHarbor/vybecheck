@@ -39,6 +39,24 @@ function App() {
     scrollRefs.current[page] = top;
   };
 
+  // Tab slide direction — tracks nav order to slide left/right
+  const PAGE_ORDER: Record<string, number> = { lobby: 0, lab: 1, quiz: 2, vybes: 3 };
+  const prevPageRef = useRef(activePage);
+  const slideDir = useRef<'right' | 'left'>('right');
+  if (prevPageRef.current !== activePage) {
+    slideDir.current = (PAGE_ORDER[activePage] ?? 0) >= (PAGE_ORDER[prevPageRef.current] ?? 0) ? 'right' : 'left';
+    prevPageRef.current = activePage;
+  }
+
+  // Connection timeout — escalating messages
+  const [connectMessage, setConnectMessage] = useState('Connecting to server...');
+  useEffect(() => {
+    if (connected) { setConnectMessage('Connecting to server...'); return; }
+    const t1 = setTimeout(() => setConnectMessage('Taking a little longer than usual…'), 8000);
+    const t2 = setTimeout(() => setConnectMessage('Having trouble connecting. Try refreshing.'), 22000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [connected]);
+
   // Onboarding — shown once per user on first sign-in
   // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
   // const [showOnboarding, setShowOnboarding] = useState(false);
@@ -298,7 +316,7 @@ function App() {
   if (!connected) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
-        <LoadingScreen message="Connecting to server..." />
+        <LoadingScreen message={connectMessage} />
       </div>
     );
   }
@@ -369,7 +387,7 @@ function App() {
       )}
 
       {/* Page content — re-keyed on route change to trigger fade-in */}
-      <div key={activePage} className="flex-1 min-h-0 flex flex-col animate-fade-in overflow-hidden" ref={scrollContainerRef}>
+      <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
         {activePage === 'lab' && <LabPage />}
         {activePage === 'quiz' && <QuizPage />}
         {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}

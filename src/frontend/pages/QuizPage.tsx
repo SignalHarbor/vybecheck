@@ -8,6 +8,7 @@ import { Header } from '../components/Header';
 import { MatchCard } from '../components/MatchCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { haptic } from '../utils/haptic';
+import { useCountUp } from '../utils/useCountUp';
 import type { MatchTier } from '../../shared/types';
 
 const TIER_COSTS: Record<MatchTier, number> = {
@@ -27,7 +28,7 @@ export function QuizPage() {
   const { send } = useWebSocketStore();
   const { vybesBalance, hasFeatureUnlock, authToken, signInWithTwitter } = useAuthStore();
   const isAuthenticated = authToken !== null;
-  const { setActivePage } = useUIStore();
+  const { activePage, setActivePage, showNotification } = useUIStore();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedTier, setSelectedTier] = useState<MatchTier>('PREVIEW');
   const prevQuestionCountRef = useRef(0);
@@ -42,6 +43,12 @@ export function QuizPage() {
   // Configurable threshold: percentage of participants that must complete before matches can be calculated
   // 100 = all participants must complete, 50 = half must complete, etc.
   const COMPLETION_THRESHOLD_PERCENT = 100;
+
+  // Results count-up — hoisted before early returns (hooks must be unconditional)
+  const isExpired = quizState?.status === 'expired';
+  const summaryAnswered = isExpired ? quizState!.myResponses.filter(r => r !== '').length : 0;
+  const animatedAnswered = useCountUp(summaryAnswered, 800, isExpired);
+  const animatedVybes = useCountUp(isExpired ? vybesBalance : 0, 1200, isExpired);
 
   // Navigate to new questions when they're added
   useEffect(() => {
@@ -89,10 +96,11 @@ export function QuizPage() {
       type: 'response:submit',
       data: { questionId, optionChosen }
     });
+    showNotification('✓ Response recorded');
 
     // Move to next question after answering
     if (quizState && currentQuestionIndex < quizState.questions.length - 1) {
-      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 300);
+      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 600);
     }
   };
 
@@ -285,7 +293,6 @@ export function QuizPage() {
 
   // Session ended — show a summary screen
   if (quizState.status === 'expired') {
-    const answeredCount = quizState.myResponses.filter(r => r !== '').length;
     const totalQs = quizState.questions.length;
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
@@ -298,11 +305,11 @@ export function QuizPage() {
             <p className="text-[13px] text-ink-muted mb-5">Here's how you did</p>
             <div className="flex items-stretch gap-3 w-full mb-5">
               <div className="flex-1 rounded-2xl bg-tint-blue p-3 text-center">
-                <p className="text-[22px] font-black text-vybe-blue">{answeredCount}/{totalQs}</p>
+                <p className="text-[22px] font-black text-vybe-blue">{animatedAnswered}/{totalQs}</p>
                 <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">ANSWERED</p>
               </div>
               <div className="flex-1 rounded-2xl bg-tint-yellow p-3 text-center">
-                <p className="text-[22px] font-black text-vybe-gold">{vybesBalance}</p>
+                <p className="text-[22px] font-black text-vybe-gold">{animatedVybes}</p>
                 <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">VYBES</p>
               </div>
             </div>
