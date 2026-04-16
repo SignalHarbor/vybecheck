@@ -20,18 +20,22 @@ interface UIStore {
   activePage: PageType;
   notification: string;
   error: string;
+  info: string;
   
   setActivePage: (page: PageType) => void;
   showNotification: (message: string, duration?: number) => void;
   showError: (message: string, duration?: number) => void;
+  showInfo: (message: string, duration?: number) => void;
   clearNotification: () => void;
   clearError: () => void;
+  clearInfo: () => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
   activePage: getStoredActivePage(),
   notification: '',
   error: '',
+  info: '',
   
   setActivePage: (page) => {
     try {
@@ -55,8 +59,17 @@ export const useUIStore = create<UIStore>((set) => ({
       setTimeout(() => set({ error: '' }), duration);
     }
   },
+
+  showInfo: (message, duration = 3000) => {
+    set({ info: message });
+    if (duration > 0) {
+      setTimeout(() => set({ info: '' }), duration);
+    }
+  },
   
   clearNotification: () => set({ notification: '' }),
   
   clearError: () => set({ error: '' }),
+
+  clearInfo: () => set({ info: '' }),
 }));

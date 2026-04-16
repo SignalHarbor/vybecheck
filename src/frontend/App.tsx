@@ -23,7 +23,7 @@ function App() {
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
   const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, quizState, reset: resetQuizStore } = useQuizStore();
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
-  const { activePage, setActivePage, notification, error, showNotification, showError, clearNotification, clearError } = useUIStore();
+  const { activePage, setActivePage, notification, error, info, showNotification, showError, showInfo, clearNotification, clearError, clearInfo } = useUIStore();
   const { draftQuestions } = useDraftStore();
 
   // Scroll position memory — restore per-tab scroll on tab switch
@@ -345,7 +345,7 @@ function App() {
   return (
     <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans transition-colors duration-300">
       {/* Fixed toast notifications — bottom of screen above nav */}
-      {(notification || error) && (
+      {(notification || error || info) && (
         <div className="absolute bottom-[calc(88px+env(safe-area-inset-bottom))] left-0 right-0 z-50 px-4 pointer-events-none">
           {notification && (
             <div
@@ -363,6 +363,15 @@ function App() {
               title="Tap to dismiss"
             >
               {error}
+            </div>
+          )}
+          {info && (
+            <div
+              onClick={clearInfo}
+              className="bg-ink text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.25)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              title="Tap to dismiss"
+            >
+              {info}
             </div>
           )}
         </div>
@@ -416,7 +425,7 @@ function App() {
         isAuthenticated={authToken !== null}
         hasActiveSession={hasActiveSession}
         participantCount={quizState?.participantCount}
-        onLockedTap={showError}
+        onLockedTap={showInfo}
       />
 
       {/* First-time onboarding overlay */}
