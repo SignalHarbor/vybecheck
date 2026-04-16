@@ -12,6 +12,7 @@ interface DraftQuestionCardProps {
   onDragStart?: (index: number) => void;
   onDragEnter?: (index: number) => void;
   onDragEnd?: () => void;
+  isRemoving?: boolean;
 }
 
 export function DraftQuestionCard({
@@ -24,11 +25,12 @@ export function DraftQuestionCard({
   editDisabledReason,
   onDragStart,
   onDragEnter,
-  onDragEnd
+  onDragEnd,
+  isRemoving = false,
 }: DraftQuestionCardProps) {
   return (
     <div
-      className="group relative rounded-2xl border-[1.5px] border-border-light border-l-[3.5px] border-l-ink-muted bg-white p-4 shadow-sm transition-all hover:shadow-md cursor-grab active:cursor-grabbing"
+      className={`group relative rounded-2xl border-[1.5px] border-border-light border-l-[3.5px] border-l-ink-muted bg-white p-4 shadow-sm transition-all hover:shadow-md cursor-grab active:cursor-grabbing origin-top ${isRemoving ? 'animate-fade-out-shrink overflow-hidden' : ''}`}
       draggable
       onDragStart={(e) => {
         // Essential for Firefox

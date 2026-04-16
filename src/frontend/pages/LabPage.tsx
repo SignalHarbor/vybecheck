@@ -38,6 +38,8 @@ export function LabPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(false);
   const [pendingNeedsUpgrade, setPendingNeedsUpgrade] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [removingDraftIds, setRemovingDraftIds] = useState<Set<string>>(new Set());
   const prevSessionIdRef = useRef<string | null>(null);
   const [showFloatingPublish, setShowFloatingPublish] = useState(false);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
@@ -163,6 +165,14 @@ export function LabPage() {
     setDraggedDraftIndex(null);
   };
 
+  const handleRemoveDraft = (id: string) => {
+    setRemovingDraftIds(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      removeDraft(id);
+      setRemovingDraftIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+    }, 200);
+  };
+
   const publishDraftQuestions = () => {
     const unansweredDrafts = draftQuestions.filter(q => !q.ownerResponse);
     if (unansweredDrafts.length > 0) {
@@ -182,11 +192,13 @@ export function LabPage() {
     const questionsToPublish = [...draftQuestions];
     clearDrafts();
     setShowPublishDialog(false);
+    setIsPublishing(true);
     haptic(20);
     showNotification(`Publishing ${questionsToPublish.length} question${questionsToPublish.length !== 1 ? 's' : ''}...`);
     questionsToPublish.forEach(draft => {
       send({ type: 'question:add', data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse } });
     });
+    setTimeout(() => setIsPublishing(false), 2000);
   };
 
   const confirmUpgradeAndPublish = () => {
@@ -407,6 +419,7 @@ export function LabPage() {
                   if (ownerResponse && ownerResponse === option1) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option A"
+                maxLength={60}
                 className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
@@ -418,6 +431,7 @@ export function LabPage() {
                   if (ownerResponse && ownerResponse === option2) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option B"
+                maxLength={60}
                 className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
@@ -529,10 +543,11 @@ export function LabPage() {
                 <button
                   ref={publishButtonRef}
                   onClick={publishDraftQuestions}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-vybe-red/20 bg-tint-pink px-3 py-1.5 text-[12px] font-bold text-vybe-red"
+                  disabled={isPublishing}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-vybe-red/20 bg-tint-pink px-3 py-1.5 text-[12px] font-bold text-vybe-red disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={12} />
-                  Publish All
+                  {isPublishing ? 'Publishing…' : 'Publish All'}
                 </button>
               )}
             </div>
@@ -543,7 +558,7 @@ export function LabPage() {
                   key={draft.id}
                   draft={draft}
                   index={index}
-                  onRemove={removeDraft}
+                  onRemove={handleRemoveDraft}
                   onSetOwnerResponse={setOwnerResponse}
                   onEdit={handleEditDraft}
                   isEditDisabled={hasUnsavedInput}
@@ -551,6 +566,7 @@ export function LabPage() {
                   onDragStart={handleDragStart}
                   onDragEnter={handleDragEnter}
                   onDragEnd={handleDragEnd}
+                  isRemoving={removingDraftIds.has(draft.id)}
                 />
               ))}
 
@@ -621,10 +637,11 @@ export function LabPage() {
       {hasActiveSession && draftQuestions.length > 0 && showFloatingPublish && (
         <button
           onClick={publishDraftQuestions}
-          className="absolute bottom-4 right-4 z-30 flex cursor-pointer items-center gap-2.5 rounded-full border-0 bg-gradient-red px-5 py-[13px] text-[13px] font-extrabold text-white shadow-glow-red-lg transition-all animate-slide-up"
+          disabled={isPublishing}
+          className="absolute bottom-4 right-4 z-30 flex cursor-pointer items-center gap-2.5 rounded-full border-0 bg-gradient-red px-5 py-[13px] text-[13px] font-extrabold text-white shadow-glow-red-lg transition-all animate-slide-up disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Send size={15} />
-          Publish {draftQuestions.length} Question{draftQuestions.length !== 1 ? 's' : ''}
+          {isPublishing ? 'Publishing…' : `Publish ${draftQuestions.length} Question${draftQuestions.length !== 1 ? 's' : ''}`}
         </button>
       )}
     </div>

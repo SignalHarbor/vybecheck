@@ -361,8 +361,9 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             <div className="flex items-center gap-2">
               <button
                 onClick={copySessionId}
+                disabled={copied}
                 title="Copy session ID"
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all ${
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
                   copied
                     ? 'border-status-success/30 bg-tint-green text-status-success-dark'
                     : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'

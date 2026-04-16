@@ -1,6 +1,7 @@
 import { Zap, DoorOpen, Sparkles, FlaskConical, Lock } from 'lucide-react';
 import type { PageType } from '../store/uiStore';
 import type { LucideIcon } from 'lucide-react';
+import { haptic } from '../utils/haptic';
 
 interface BottomNavProps {
   activePage: PageType;
@@ -64,8 +65,10 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
             key={id}
             onClick={() => {
               if (locked) {
+                haptic(10);
                 if (lockedMessage && onLockedTap) onLockedTap(lockedMessage);
               } else {
+                haptic();
                 onNavigate(id);
               }
             }}
@@ -96,7 +99,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
                 </span>
               )}
               {!locked && badge !== undefined && badge > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3.75 w-3.75 items-center justify-center rounded-full bg-vybe-red text-[8px] font-extrabold text-white">
+                <span className="absolute -top-1 -right-1 flex h-3.75 w-3.75 items-center justify-center rounded-full bg-vybe-red text-[8px] font-extrabold text-white animate-pulse">
                   {badge}
                 </span>
               )}

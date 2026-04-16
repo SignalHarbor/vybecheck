@@ -267,12 +267,16 @@ export function QuizPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
           <div className="text-5xl mb-4 animate-pulse">⏳</div>
           <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Session Not Started</h2>
-          <p className="text-[13px] text-ink-muted m-0 mb-5">Waiting for the host to start the session...</p>
+          <p className="text-[13px] text-ink-muted m-0 mb-5">
+            {isOwner
+              ? 'Head to Lobby when you\'re ready to start the session.'
+              : 'Waiting for the host to start the session...'}
+          </p>
           <button
-            onClick={() => setActivePage('lobby')}
+            onClick={() => setActivePage(isOwner ? 'lobby' : 'lobby')}
             className="flex items-center gap-2 rounded-2xl border border-border-light bg-white px-5 py-3 text-[13px] font-bold text-vybe-blue cursor-pointer shadow-card-muted active:scale-[0.97]"
           >
-            <Radio size={14} /> Go to Lobby
+            <Radio size={14} /> {isOwner ? 'Go to Lobby to Start' : 'Go to Lobby'}
           </button>
         </div>
       </div>
