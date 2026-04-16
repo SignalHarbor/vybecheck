@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Radio, Sparkles, ChevronRight } from 'lucide-react';
+import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
 import { MatchCard } from '../components/MatchCard';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { MatchTier } from '../../shared/types';
 
 const TIER_COSTS: Record<MatchTier, number> = {
@@ -29,6 +30,13 @@ export function QuizPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedTier, setSelectedTier] = useState<MatchTier>('PREVIEW');
   const prevQuestionCountRef = useRef(0);
+
+  // Vybes spend confirmation
+  const [pendingTier, setPendingTier] = useState<MatchTier | null>(null);
+
+  // Confetti burst on quiz completion
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevCompletedRef = useRef(false);
 
   // Configurable threshold: percentage of participants that must complete before matches can be calculated
   // 100 = all participants must complete, 50 = half must complete, etc.
@@ -63,6 +71,17 @@ export function QuizPage() {
     }
   }, [quizState?.questions.length, quizState?.myResponses, currentQuestionIndex]);
 
+  // Trigger confetti burst when quiz first becomes fully completed
+  useEffect(() => {
+    if (!quizState) return;
+    const isNowCompleted = quizState.myResponses.every(r => r !== '');
+    if (isNowCompleted && !prevCompletedRef.current) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1800);
+    }
+    prevCompletedRef.current = isNowCompleted;
+  }, [quizState?.myResponses]);
+
   const submitResponse = (questionId: string, optionChosen: string) => {
     send({
       type: 'response:submit',
@@ -78,6 +97,21 @@ export function QuizPage() {
   const getMatches = (tier: MatchTier) => {
     setMatchesLoading(true);
     send({ type: 'matches:get', data: { tier } });
+  };
+
+  const handleTierButtonClick = (tier: MatchTier) => {
+    if (hasTierAccess(tier) || TIER_COSTS[tier] === 0) {
+      getMatches(tier);
+    } else {
+      setPendingTier(tier);
+    }
+  };
+
+  const confirmSpend = () => {
+    if (pendingTier) {
+      getMatches(pendingTier);
+      setPendingTier(null);
+    }
   };
 
   // Check if user already has access to a tier (won't be charged again)
@@ -111,6 +145,16 @@ export function QuizPage() {
 
   // No active session
   if (!sessionId || !quizState) {
+    // DEV DEMO: toggle to preview match cards
+    // TODO: REMOVE BEFORE PUBLISHING
+    const [showMatchDemo, setShowMatchDemo] = (useState as typeof useState<boolean>)(false);
+    const demoMatches = [
+      { participantId: 'abc123def456', username: 'kingnoble_',   matchPercentage: 92 },
+      { participantId: 'xyz789ghi012', username: 'signalharbor', matchPercentage: 74 },
+      { participantId: 'mno345pqr678', username: 'vybemaster',   matchPercentage: 55 },
+      { participantId: 'stu901vwx234', username: 'lowvybe_dev',  matchPercentage: 31 },
+    ];
+
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header
@@ -122,6 +166,31 @@ export function QuizPage() {
         />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* DEV: Match ring demo */}
+          <div className="mb-4 rounded-2xl border border-dashed border-vybe-yellow/40 bg-tint-yellow px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-[12px] font-bold text-vybe-gold">🎨 DEV: Match ring preview</p>
+            <button
+              onClick={() => setShowMatchDemo(v => !v)}
+              className="rounded-xl bg-vybe-yellow/30 px-3 py-1 text-[11px] font-extrabold text-vybe-gold cursor-pointer border-0"
+            >
+              {showMatchDemo ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          {showMatchDemo && (
+            <div className="mb-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">DEMO MATCHES</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {demoMatches.map((m, i) => (
+                  <MatchCard key={m.participantId} match={m} rank={i + 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
             <div className="pointer-events-none absolute -top-[30px] -right-5 h-[110px] w-[110px] rounded-full bg-[radial-gradient(circle,rgba(83,157,192,0.1)_0%,transparent_70%)]" />
             <div className="relative">
@@ -226,6 +295,29 @@ export function QuizPage() {
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header title="Quiz" subtitle="Answer time ⚡" />
 
+      {/* Confetti burst overlay */}
+      {showConfetti && (
+        <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+          {[...Array(18)].map((_, i) => {
+            const colors = ['#FEC539','#F14573','#539DC0','#63688C','#22C55E'];
+            const color = colors[i % colors.length];
+            const left = `${5 + (i * 5.5) % 90}%`;
+            const delay = `${(i * 0.07).toFixed(2)}s`;
+            return (
+              <div
+                key={i}
+                className="absolute top-1/3 h-2.5 w-2.5 rounded-full"
+                style={{
+                  left,
+                  background: color,
+                  animation: `confettiBurst 1.6s ease-out ${delay} forwards`,
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Progress Bar */}
         <div className="mb-4 flex flex-col gap-2">
@@ -256,6 +348,7 @@ export function QuizPage() {
 
         {/* Question Card */}
         {!isCompleted ? (
+          <>
           <div className="rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center">
             <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-5">
               <Zap size={24} strokeWidth={2} className="text-vybe-blue" />
@@ -289,6 +382,29 @@ export function QuizPage() {
               })}
             </div>
           </div>
+
+          {/* Prev / Next navigation */}
+          <div className="flex items-center justify-between gap-3 mt-4">
+            <button
+              onClick={() => setCurrentQuestionIndex(i => Math.max(0, i - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
+            >
+              <ChevronLeft size={15} strokeWidth={2.5} /> Prev
+            </button>
+            <span className="text-[12px] font-bold text-ink-muted">
+              {currentQuestionIndex + 1} / {totalQuestions}
+            </span>
+            <button
+              onClick={() => setCurrentQuestionIndex(i => Math.min(totalQuestions - 1, i + 1))}
+              disabled={currentQuestionIndex === totalQuestions - 1 || !hasAnswered}
+              className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
+            >
+              Next <ChevronRight size={15} strokeWidth={2.5} />
+            </button>
+          </div>
+          </>
+
         ) : !quizState.resultsReleased && !isOwner ? (
           <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
             <div className="w-12 h-12 bg-tint-yellow rounded-2xl flex items-center justify-center mb-5">
@@ -365,7 +481,7 @@ export function QuizPage() {
                   </div>
 
                   <button
-                    onClick={() => getMatches(selectedTier)}
+                    onClick={() => handleTierButtonClick(selectedTier)}
                     disabled={!canCalculateMatches || !canAffordTier(selectedTier) || matchState.isLoading}
                     className={`w-full mt-4 py-3.5 border-none rounded-2xl cursor-pointer text-[14px] font-bold transition-all bg-gradient-red text-white shadow-glow-red active:scale-[0.97] ${
                       canCalculateMatches && canAffordTier(selectedTier) ? '' : 'opacity-50 cursor-not-allowed'
@@ -400,6 +516,19 @@ export function QuizPage() {
           </div>
         )}
       </div>
+
+      {/* Vybes spend confirmation */}
+      {pendingTier && (
+        <ConfirmDialog
+          isOpen={true}
+          title={`Unlock ${TIER_LABELS[pendingTier]}?`}
+          message={`This will spend ${TIER_COSTS[pendingTier]} ✨ Vybes from your balance of ${vybesBalance} ✨. You won't be charged again for this tier.`}
+          confirmText={`Spend ${TIER_COSTS[pendingTier]} Vybes`}
+          cancelText="Cancel"
+          onConfirm={confirmSpend}
+          onCancel={() => setPendingTier(null)}
+        />
+      )}
     </div>
   );
 }

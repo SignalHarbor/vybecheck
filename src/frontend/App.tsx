@@ -16,14 +16,29 @@ import { PurchaseSuccess } from './pages/PurchaseSuccess';
 import { PurchaseCancel } from './pages/PurchaseCancel';
 import { PurchaseError } from './pages/PurchaseError';
 import { AuthCallback } from './pages/AuthCallback';
+import OnboardingPage, { ONBOARDING_KEY } from './pages/OnboardingPage';
 
 function App() {
   // Zustand stores
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
-  const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, reset: resetQuizStore } = useQuizStore();
+  const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, quizState, reset: resetQuizStore } = useQuizStore();
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
   const { activePage, setActivePage, notification, error, showNotification, showError } = useUIStore();
   const { draftQuestions } = useDraftStore();
+
+  // Onboarding — shown once per user on first sign-in
+  // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
+  // const [showOnboarding, setShowOnboarding] = useState(false);
+  // useEffect(() => {
+  //   if (isSignedIn && !localStorage.getItem(ONBOARDING_KEY)) {
+  //     setShowOnboarding(true);
+  //   }
+  // }, [isSignedIn]);
+  const [showOnboarding, setShowOnboarding] = useState(true); // DEV: always show for preview
+  const completeOnboarding = () => {
+    localStorage.setItem(ONBOARDING_KEY, '1');
+    setShowOnboarding(false);
+  };
 
   // Revalidate auth session on app load
   useEffect(() => {
@@ -113,8 +128,8 @@ function App() {
         if (!isSignedIn) {
           setSignedIn(`guest_${message.data.participantId.slice(0, 6)}`);
         }
-        // Navigate to lobby (waiting room) for participants
-        setActivePage(message.data.isOwner ? 'lab' : 'lobby');
+        // Owner → Lab to build questions; participant → Quiz to answer
+        setActivePage(message.data.isOwner ? 'lab' : 'quiz');
         break;
 
       case 'session:reconnected':
@@ -283,14 +298,21 @@ function App() {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <StartPage prefilledSessionId={deeplinkSessionId} />
+        {/* DEV: show onboarding even on start page for preview */}
+        {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
       </div>
     );
   }
 
-  // Signed-in users shouldn't be on 'start' — default based on auth status
+  // Signed-in users shouldn't be on 'start' — default to Lobby
   if (activePage === 'start') {
     setActivePage(authToken ? 'lab' : 'lobby');
   }
+
+  // Active session banner: show when user has a session but isn't on Lobby or Quiz
+  const hasActiveSession = Boolean(sessionId) && Boolean(quizState) && quizState?.status !== 'expired';
+  const onSessionPage = activePage === 'lobby' || activePage === 'quiz';
+  const showSessionBanner = hasActiveSession && !onSessionPage;
 
   return (
     <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative font-sans">
@@ -310,6 +332,24 @@ function App() {
         </div>
       )}
 
+      {/* Active session sticky banner */}
+      {showSessionBanner && (
+        <div className="absolute bottom-[calc(72px+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4">
+          <button
+            onClick={() => setActivePage(isOwner ? 'lobby' : 'quiz')}
+            className="w-full flex items-center justify-between gap-3 rounded-2xl border border-vybe-red/20 bg-white px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.1)] cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="h-2 w-2 rounded-full bg-vybe-red animate-pulse shrink-0" />
+              <span className="text-[13px] font-bold text-ink">
+                {isOwner ? '🎙 Session active — back to Lobby' : '⚡ Session active — back to Quiz'}
+              </span>
+            </div>
+            <span className="text-[12px] font-bold text-vybe-red shrink-0">Go →</span>
+          </button>
+        </div>
+      )}
+
       {activePage === 'lab' && <LabPage />}
       {activePage === 'quiz' && <QuizPage />}
       {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
@@ -322,7 +362,11 @@ function App() {
         hasSession={Boolean(sessionId)}
         draftCount={draftQuestions.length}
         isAuthenticated={authToken !== null}
+        hasActiveSession={hasActiveSession}
       />
+
+      {/* First-time onboarding overlay */}
+      {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
     </div>
   );
 }
