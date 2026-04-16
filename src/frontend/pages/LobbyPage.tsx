@@ -169,7 +169,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              className="flex-1 border-0 bg-transparent font-mono text-[15px] font-bold tracking-[0.15em] text-ink outline-none placeholder:font-sans placeholder:text-[12px] placeholder:font-normal placeholder:tracking-normal placeholder:text-ink-muted"
+              className="flex-1 border-0 bg-transparent inline-input font-mono text-[15px] font-bold tracking-[0.15em] text-ink outline-none placeholder:font-sans placeholder:text-[12px] placeholder:font-normal placeholder:tracking-normal placeholder:text-ink-muted"
             />
             {/* right-side action */}
             {joinSessionId.length > 0 && !isValidCode(joinSessionId) && (

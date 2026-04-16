@@ -381,7 +381,7 @@ export function LabPage() {
                   if (ownerResponse === option1) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option A"
-                className="box-border w-full rounded-xl border-0 bg-transparent px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+                className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
             <div
@@ -399,7 +399,7 @@ export function LabPage() {
                   if (ownerResponse === option2) setOwnerResponseState(e.target.value);
                 }}
                 placeholder="Option B"
-                className="box-border w-full rounded-xl border-0 bg-transparent px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
+                className="box-border w-full rounded-xl border-0 bg-transparent inline-input px-3 py-[9px] text-[13px] text-ink outline-none placeholder:text-ink-muted"
               />
             </div>
           </div>
