@@ -347,10 +347,13 @@ function App() {
         </div>
       )}
 
-      {activePage === 'lab' && <LabPage />}
-      {activePage === 'quiz' && <QuizPage />}
-      {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
-      {activePage === 'vybes' && <VybesPage />}
+      {/* Page content — re-keyed on route change to trigger fade-in */}
+      <div key={activePage} className="flex-1 min-h-0 flex flex-col animate-fade-in overflow-hidden">
+        {activePage === 'lab' && <LabPage />}
+        {activePage === 'quiz' && <QuizPage />}
+        {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
+        {activePage === 'vybes' && <VybesPage />}
+      </div>
 
       <BottomNav
         activePage={activePage}

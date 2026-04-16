@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
-import { Sparkles, Moon, Sun } from 'lucide-react';
+import { Sparkles, Moon, Sun, Radio, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
@@ -26,7 +26,7 @@ const actionStyles = {
 
 export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pills }: HeaderProps) {
   const { profileImageUrl, authToken, signOut, vybesBalance } = useAuthStore();
-  const { reset: resetQuizStore } = useQuizStore();
+  const { reset: resetQuizStore, sessionId, quizState } = useQuizStore();
   const { setActivePage } = useUIStore();
   const isAuthenticated = authToken !== null;
 
@@ -74,6 +74,36 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Session status chip — shown when there's an active session */}
+          {sessionId && quizState && (
+            <div className={`mt-1 flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+              quizState.status === 'active'
+                ? 'border-vybe-red/30 bg-vybe-red/15'
+                : quizState.status === 'expired'
+                  ? 'border-ink-muted/25 bg-ink-muted/15'
+                  : 'border-vybe-yellow/30 bg-vybe-yellow/15'
+            }`}>
+              {quizState.status === 'active' && (
+                <>
+                  <Radio size={9} className="text-vybe-red animate-pulse" />
+                  <span className="text-[10px] font-bold text-vybe-red">Live</span>
+                </>
+              )}
+              {quizState.status === 'live' && (
+                <>
+                  <Clock size={9} className="text-vybe-yellow" />
+                  <span className="text-[10px] font-bold text-vybe-yellow">In Lobby</span>
+                </>
+              )}
+              {quizState.status === 'expired' && (
+                <>
+                  <CheckCircle size={9} className="text-ink-muted" />
+                  <span className="text-[10px] font-bold text-ink-muted">Ended</span>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Dark mode toggle — TODO: Add dark: variants to components before publishing */}
           <button
             onClick={toggleDark}

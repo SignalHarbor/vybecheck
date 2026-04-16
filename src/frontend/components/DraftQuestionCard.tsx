@@ -92,7 +92,7 @@ export function DraftQuestionCard({
                 e.stopPropagation();
                 onSetOwnerResponse?.(draft.id, option);
               }}
-              className={`rounded-xl px-3 py-2 text-center transition-all ${
+              className={`rounded-xl px-3 py-2 text-center transition-all active:scale-[0.97] ${
                 onSetOwnerResponse ? 'cursor-pointer' : 'cursor-default'
               } ${
                 isSelected

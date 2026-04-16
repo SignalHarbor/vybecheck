@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, History, Lock, ChevronRight, Zap } from 'lucide-react';
+import { Sparkles, History, Lock, Zap } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
+import { SkeletonRow } from '../components/SkeletonCard';
 import { useFeatures } from '../utils/features';
 import type { LedgerEntry } from '../../shared/types';
 
@@ -204,9 +205,21 @@ export function VybesPage() {
           <div className="mb-4 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
             <h3 className="m-0 mb-3 text-[13px] font-extrabold text-ink">Transaction History</h3>
             {isLoadingHistory ? (
-              <p className="text-ink-muted text-[12px] m-0">Loading...</p>
+              <div className="flex flex-col gap-1">
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
             ) : transactionHistory.length === 0 ? (
-              <p className="text-ink-muted text-[12px] m-0">No transactions yet</p>
+              <div className="flex flex-col items-center gap-2.5 py-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-yellow">
+                  <Sparkles size={22} className="fill-vybe-yellow text-vybe-yellow" />
+                </div>
+                <p className="text-[14px] font-bold text-ink">No transactions yet</p>
+                <p className="text-[12px] text-ink-muted leading-[1.5]">
+                  Answer questions in a session<br />to earn your first Vybes ✨
+                </p>
+              </div>
             ) : (
               <div className="flex flex-col">
                 {transactionHistory.map((txn: LedgerEntry) => (
