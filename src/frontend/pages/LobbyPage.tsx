@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check } from 'lucide-react';
+import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2 } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -27,6 +27,22 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const shareSession = async () => {
+    if (!sessionId) return;
+    const shareUrl = `${window.location.origin}/join/${sessionId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my VybeCheck session!',
+          text: `Join my live quiz — session code: ${sessionId}`,
+          url: shareUrl,
+        });
+      } catch { /* user cancelled */ }
+    } else {
+      navigator.clipboard.writeText(shareUrl).then(() => showNotification('Share link copied!'));
+    }
   };
 
   const headerPills = (
@@ -270,6 +286,14 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copied!' : 'Copy'}
               </button>
+              <button
+                onClick={shareSession}
+                title="Share session"
+                className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-page px-3 py-1.5 text-[11px] font-bold text-ink-muted cursor-pointer transition-all hover:border-vybe-red/30 hover:text-vybe-red"
+              >
+                <Share2 size={12} />
+                Share
+              </button>
               <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
                 <DoorOpen size={10} className="text-ink-muted" />
                 <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
@@ -288,45 +312,67 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
 
         <div className="mb-5 rounded-3xl border border-border-light bg-white p-4 shadow-card-muted">
           {(isOwner && (isActive || isExpired) && quizState.participantProgress
-            ? quizState.participantProgress.map(p => (
-                <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
-                  <div className="flex-1 min-w-0">
+            ? quizState.participantProgress.map(p => {
+                const name = p.username || p.participantId.slice(0, 8);
+                const initials = name.slice(0, 2).toUpperCase();
+                const hue = (p.participantId.charCodeAt(0) * 37 + p.participantId.charCodeAt(1) * 17) % 360;
+                return (
+                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                    {/* Avatar */}
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+                      style={{ background: `hsl(${hue},55%,52%)` }}
+                    >
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-bold text-ink truncate">{name}</span>
+                        {p.isOwner && <span className="text-[10px]" title="Owner">👑</span>}
+                        {p.participantId === participantId && (
+                          <span className="text-[9px] font-extrabold text-vybe-blue bg-tint-blue py-0.5 px-1.5 rounded">YOU</span>
+                        )}
+                        {!p.isActive && <span className="text-[10px] text-ink-muted">(offline)</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex-1 h-1 bg-tint-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              p.completionPercent === 100 ? 'bg-status-success' : p.completionPercent > 0 ? 'bg-vybe-blue' : 'bg-border-light'
+                            }`}
+                            style={{ width: `${p.completionPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-ink-muted w-7 text-right">{p.completionPercent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            : quizState.participants.map(p => {
+                const name = p.username || p.id.slice(0, 8);
+                const initials = name.slice(0, 2).toUpperCase();
+                const hue = (p.id.charCodeAt(0) * 37 + p.id.charCodeAt(1) * 17) % 360;
+                return (
+                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                    {/* Avatar */}
+                    <div
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+                      style={{ background: `hsl(${hue},55%,52%)` }}
+                    >
+                      {initials}
+                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold text-ink truncate">
-                        {p.username || p.participantId.slice(0, 8)}
-                      </span>
+                      <span className="text-[13px] font-bold text-ink">{name}</span>
                       {p.isOwner && <span className="text-[10px]" title="Owner">👑</span>}
-                      {p.participantId === participantId && (
+                      {p.id === participantId && (
                         <span className="text-[9px] font-extrabold text-vybe-blue bg-tint-blue py-0.5 px-1.5 rounded">YOU</span>
                       )}
                       {!p.isActive && <span className="text-[10px] text-ink-muted">(offline)</span>}
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <div className="flex-1 h-1 bg-tint-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            p.completionPercent === 100 ? 'bg-status-success' : p.completionPercent > 0 ? 'bg-vybe-blue' : 'bg-border-light'
-                          }`}
-                          style={{ width: `${p.completionPercent}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-bold text-ink-muted w-7 text-right">{p.completionPercent}%</span>
-                    </div>
                   </div>
-                </div>
-              ))
-            : quizState.participants.map(p => (
-                <div key={p.id} className="flex items-center gap-2 py-3 border-b border-border-light last:border-b-0">
-                  <span className="text-[13px] font-bold text-ink">
-                    {p.username || p.id.slice(0, 8)}
-                  </span>
-                  {p.isOwner && <span className="text-[10px]" title="Owner">👑</span>}
-                  {p.id === participantId && (
-                    <span className="text-[9px] font-extrabold text-vybe-blue bg-tint-blue py-0.5 px-1.5 rounded">YOU</span>
-                  )}
-                  {!p.isActive && <span className="text-[10px] text-ink-muted">(offline)</span>}
-                </div>
-              ))
+                );
+              })
           )}
         </div>
 

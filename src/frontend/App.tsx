@@ -16,6 +16,7 @@ import { PurchaseSuccess } from './pages/PurchaseSuccess';
 import { PurchaseCancel } from './pages/PurchaseCancel';
 import { PurchaseError } from './pages/PurchaseError';
 import { AuthCallback } from './pages/AuthCallback';
+import OnboardingPage, { ONBOARDING_KEY } from './pages/OnboardingPage';
 
 function App() {
   // Zustand stores
@@ -24,6 +25,18 @@ function App() {
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
   const { activePage, setActivePage, notification, error, showNotification, showError } = useUIStore();
   const { draftQuestions } = useDraftStore();
+
+  // Onboarding — shown once per user on first sign-in
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (isSignedIn && !localStorage.getItem(ONBOARDING_KEY)) {
+      setShowOnboarding(true);
+    }
+  }, [isSignedIn]);
+  const completeOnboarding = () => {
+    localStorage.setItem(ONBOARDING_KEY, '1');
+    setShowOnboarding(false);
+  };
 
   // Revalidate auth session on app load
   useEffect(() => {
@@ -344,6 +357,9 @@ function App() {
         isAuthenticated={authToken !== null}
         hasActiveSession={hasActiveSession}
       />
+
+      {/* First-time onboarding overlay */}
+      {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
     </div>
   );
 }

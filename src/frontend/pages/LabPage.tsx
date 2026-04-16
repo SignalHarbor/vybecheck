@@ -394,11 +394,28 @@ export function LabPage() {
 
         {/* Draft Questions */}
         {draftQuestions.length === 0 ? (
-          <div className="flex flex-col items-center py-10 opacity-40">
-            <FlaskConical size={32} strokeWidth={1.5} className="text-ink-muted" />
-            <p className="mt-2.5 text-[13px] font-semibold text-ink-muted">
-              Create questions above to add to your drafts
+          <div className="flex flex-col items-center rounded-3xl border-[1.5px] border-dashed border-border-light bg-white/60 px-6 py-10 text-center shadow-card-muted">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-muted">
+              <FlaskConical size={26} strokeWidth={1.5} className="text-ink-muted" />
+            </div>
+            <h3 className="mb-1.5 text-[15px] font-extrabold text-ink">No drafts yet</h3>
+            <p className="mb-4 max-w-[220px] text-[12px] leading-[1.6] text-ink-muted">
+              Type a question and two options above, then tap <strong>+ Add to Drafts</strong> to build your set.
             </p>
+            <div className="flex flex-col gap-2 w-full max-w-[240px]">
+              <div className="flex items-center gap-2.5 rounded-xl bg-tint-muted px-3 py-2">
+                <span className="text-[13px]">1️⃣</span>
+                <span className="text-[11px] font-semibold text-ink-muted">Write a question + 2 options</span>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl bg-tint-muted px-3 py-2">
+                <span className="text-[13px]">2️⃣</span>
+                <span className="text-[11px] font-semibold text-ink-muted">Pick your own answer</span>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl bg-tint-muted px-3 py-2">
+                <span className="text-[13px]">3️⃣</span>
+                <span className="text-[11px] font-semibold text-ink-muted">Tap + Add to Drafts</span>
+              </div>
+            </div>
           </div>
         ) : (
           <>

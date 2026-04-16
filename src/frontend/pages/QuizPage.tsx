@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
 import { MatchCard } from '../components/MatchCard';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { MatchTier } from '../../shared/types';
 
 const TIER_COSTS: Record<MatchTier, number> = {
@@ -29,6 +30,13 @@ export function QuizPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedTier, setSelectedTier] = useState<MatchTier>('PREVIEW');
   const prevQuestionCountRef = useRef(0);
+
+  // Vybes spend confirmation
+  const [pendingTier, setPendingTier] = useState<MatchTier | null>(null);
+
+  // Confetti burst on quiz completion
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevCompletedRef = useRef(false);
 
   // Configurable threshold: percentage of participants that must complete before matches can be calculated
   // 100 = all participants must complete, 50 = half must complete, etc.
@@ -63,6 +71,17 @@ export function QuizPage() {
     }
   }, [quizState?.questions.length, quizState?.myResponses, currentQuestionIndex]);
 
+  // Trigger confetti burst when quiz first becomes fully completed
+  useEffect(() => {
+    if (!quizState) return;
+    const isNowCompleted = quizState.myResponses.every(r => r !== '');
+    if (isNowCompleted && !prevCompletedRef.current) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1800);
+    }
+    prevCompletedRef.current = isNowCompleted;
+  }, [quizState?.myResponses]);
+
   const submitResponse = (questionId: string, optionChosen: string) => {
     send({
       type: 'response:submit',
@@ -78,6 +97,21 @@ export function QuizPage() {
   const getMatches = (tier: MatchTier) => {
     setMatchesLoading(true);
     send({ type: 'matches:get', data: { tier } });
+  };
+
+  const handleTierButtonClick = (tier: MatchTier) => {
+    if (hasTierAccess(tier) || TIER_COSTS[tier] === 0) {
+      getMatches(tier);
+    } else {
+      setPendingTier(tier);
+    }
+  };
+
+  const confirmSpend = () => {
+    if (pendingTier) {
+      getMatches(pendingTier);
+      setPendingTier(null);
+    }
   };
 
   // Check if user already has access to a tier (won't be charged again)
@@ -225,6 +259,29 @@ export function QuizPage() {
   return (
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header title="Quiz" subtitle="Answer time ⚡" />
+
+      {/* Confetti burst overlay */}
+      {showConfetti && (
+        <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+          {[...Array(18)].map((_, i) => {
+            const colors = ['#FEC539','#F14573','#539DC0','#63688C','#22C55E'];
+            const color = colors[i % colors.length];
+            const left = `${5 + (i * 5.5) % 90}%`;
+            const delay = `${(i * 0.07).toFixed(2)}s`;
+            return (
+              <div
+                key={i}
+                className="absolute top-1/3 h-2.5 w-2.5 rounded-full"
+                style={{
+                  left,
+                  background: color,
+                  animation: `confettiBurst 1.6s ease-out ${delay} forwards`,
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Progress Bar */}
@@ -389,7 +446,7 @@ export function QuizPage() {
                   </div>
 
                   <button
-                    onClick={() => getMatches(selectedTier)}
+                    onClick={() => handleTierButtonClick(selectedTier)}
                     disabled={!canCalculateMatches || !canAffordTier(selectedTier) || matchState.isLoading}
                     className={`w-full mt-4 py-3.5 border-none rounded-2xl cursor-pointer text-[14px] font-bold transition-all bg-gradient-red text-white shadow-glow-red active:scale-[0.97] ${
                       canCalculateMatches && canAffordTier(selectedTier) ? '' : 'opacity-50 cursor-not-allowed'
@@ -424,6 +481,19 @@ export function QuizPage() {
           </div>
         )}
       </div>
+
+      {/* Vybes spend confirmation */}
+      {pendingTier && (
+        <ConfirmDialog
+          isOpen={true}
+          title={`Unlock ${TIER_LABELS[pendingTier]}?`}
+          message={`This will spend ${TIER_COSTS[pendingTier]} ✨ Vybes from your balance of ${vybesBalance} ✨. You won't be charged again for this tier.`}
+          confirmText={`Spend ${TIER_COSTS[pendingTier]} Vybes`}
+          cancelText="Cancel"
+          onConfirm={confirmSpend}
+          onCancel={() => setPendingTier(null)}
+        />
+      )}
     </div>
   );
 }
