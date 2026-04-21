@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2, X } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -7,7 +7,16 @@ import { useUIStore } from '../store/uiStore';
 import { useDraftStore } from '../store/draftStore';
 import { Header } from '../components/Header';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { haptic } from '../utils/haptic';
 import { parseJoinInput } from '../utils/parseJoinInput';
+
+
+/** Sanitise and cap a raw session code input to 6 valid chars. */
+const sanitiseCode = (raw: string): string =>
+  raw.replace(/\s/g, '').toUpperCase().slice(0, 6);
+
+/** True when the value looks like a complete session code (exactly 6 non-space chars). */
+const isValidCode = (v: string): boolean => v.trim().length === 6;
 
 export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
@@ -16,19 +25,11 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const isAuthenticated = authToken !== null;
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
-  // Prefilled value may be a full join URL; validate & strip to the id.
-  const initialPrefill = parseJoinInput(prefilledSessionId);
-  const [joinSessionId, setJoinSessionId] = useState(initialPrefill.sessionId || '');
-
-  // If the prefilled deeplink pointed at a disallowed host, surface an error
-  // once on mount so the user understands why nothing was pre-filled.
-  useEffect(() => {
-    if (initialPrefill.error) {
-      showError(initialPrefill.error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [joinSessionId, setJoinSessionId] = useState(() => sanitiseCode(prefilledSessionId || ''));
+  const [joinSubmitted, setJoinSubmitted] = useState(false);
+  const joinInputRef = useRef<HTMLInputElement>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const createTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -39,13 +40,21 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
     // both development (localhost) and deployed environments automatically.
     const shareUrl = `${window.location.origin}/?join=${encodeURIComponent(sessionId)}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
+      haptic();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
+  // Clear the create-session timeout as soon as sessionId is received
+  if (sessionId && createTimeoutRef.current) {
+    clearTimeout(createTimeoutRef.current);
+    createTimeoutRef.current = null;
+  }
+
   const shareSession = async () => {
     if (!sessionId) return;
+    haptic();
     const shareUrl = `${window.location.origin}/join/${sessionId}`;
     if (navigator.share) {
       try {
@@ -83,6 +92,15 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
     const handleCreateSession = () => {
       setIsCreating(true);
       send({ type: 'session:create', data: { username: twitterUsername || undefined } });
+
+      // 2 minute safety timeout — reset if server never responds (disabled in dev)
+      if (!import.meta.env.DEV) {
+        if (createTimeoutRef.current) clearTimeout(createTimeoutRef.current);
+        createTimeoutRef.current = setTimeout(() => {
+          setIsCreating(false);
+          showError('Session creation timed out. Please try again.');
+        }, 120000);
+      }
 
       if (draftQuestions.length > 0) {
         setTimeout(() => {
@@ -129,13 +147,24 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         }
       }
       setJoinSessionId(value);
+      // const val = sanitiseCode(e.target.value);
+      // setJoinSessionId(val);
+      // setJoinSubmitted(false);
+      // // auto-submit once code is complete
+      // if (isValidCode(val)) {
+      //   haptic();
+      //   setTimeout(() => {
+      //     send({ type: 'session:join', data: { sessionId: val, username: twitterUsername || undefined } });
+      //     setJoinSubmitted(true);
+      //   }, 120);
+      // }
     };
 
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
         <Header title="Lobby" subtitle="Enter a session 🚪" pills={headerPills} />
 
-        <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
           {/* Explainer */}
           <div className="mb-4 rounded-2xl bg-tint-blue border border-vybe-blue/15 px-4 py-3">
             <p className="text-[12px] text-vybe-blue font-medium leading-[1.6] m-0">
@@ -149,24 +178,60 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-blue">JOIN A SESSION</p>
           </div>
           {/* Session code join */}
-          <div className="mb-4 flex items-center gap-2.5 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white px-4 py-3">
+          <div className={`mb-4 flex items-center gap-2.5 rounded-2xl border-[1.5px] bg-white px-4 py-3 transition-colors duration-150 ${
+            isValidCode(joinSessionId)
+              ? 'border-status-success shadow-[0_0_0_3px_rgba(34,197,94,0.10)]'
+              : 'border-vybe-blue/20'
+          }`}>
             <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-xl bg-tint-blue">
               <span className="text-[13px]">🔑</span>
             </div>
             <input
+              ref={joinInputRef}
               value={joinSessionId}
               onChange={(e) => handleJoinInputChange(e.target.value)}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pasted = sanitiseCode(e.clipboardData.getData('text'));
+                setJoinSessionId(pasted);
+                setJoinSubmitted(false);
+                if (isValidCode(pasted)) {
+                  haptic();
+                  setTimeout(() => {
+                    send({ type: 'session:join', data: { sessionId: pasted, username: twitterUsername || undefined } });
+                    setJoinSubmitted(true);
+                  }, 120);
+                }
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinSession()}
-              placeholder="Have a session code? Enter it here…"
-              className="flex-1 border-0 bg-transparent text-[12px] text-ink outline-none placeholder:text-ink-muted"
+              placeholder="e.g. aB3xP7"
+              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 border-0 bg-transparent inline-input font-mono text-[15px] font-bold tracking-[0.15em] text-ink outline-none placeholder:font-sans placeholder:text-[12px] placeholder:font-normal placeholder:tracking-normal placeholder:text-ink-muted"
             />
-            {joinSessionId.length > 0 && (
+            {/* right-side action */}
+            {joinSessionId.length > 0 && !isValidCode(joinSessionId) && (
+              <button
+                onClick={() => { setJoinSessionId(''); setJoinSubmitted(false); joinInputRef.current?.focus(); }}
+                className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-muted transition-opacity hover:opacity-70"
+                title="Clear"
+              >
+                <X size={15} />
+              </button>
+            )}
+            {isValidCode(joinSessionId) && !joinSubmitted && (
               <button
                 onClick={handleJoinSession}
-                className="shrink-0 cursor-pointer rounded-xl border-0 bg-gradient-blue px-3 py-1.5 text-[12px] font-bold text-white"
+                className="shrink-0 cursor-pointer rounded-xl border-0 bg-gradient-blue px-3 py-1.5 text-[12px] font-bold text-white shadow-glow-blue"
               >
-                Go →
+                Join →
               </button>
+            )}
+            {isValidCode(joinSessionId) && joinSubmitted && (
+              <span className="shrink-0 text-[11px] font-bold text-status-success animate-pulse">Joining…</span>
             )}
           </div>
 
@@ -180,7 +245,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               <div className="relative mb-5 overflow-hidden rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue">
               <div className="pointer-events-none absolute -top-[30px] -right-5 h-[110px] w-[110px] rounded-full bg-[radial-gradient(circle,rgba(83,157,192,0.1)_0%,transparent_70%)]" />
               <div className="relative">
-                <div className="mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-2xl bg-tint-blue">
+                <div className="mb-3 flex h-[46px] gs items-center justify-center rounded-2xl bg-tint-blue">
                   <DoorOpen size={22} strokeWidth={2.2} className="text-vybe-blue" />
                 </div>
                 <h2 className="mb-[5px] text-[17px] font-extrabold text-ink">Create a Session</h2>
@@ -192,10 +257,19 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                   disabled={isCreating}
                   className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-red py-3 text-[14px] font-bold text-white shadow-glow-red disabled:opacity-50"
                 >
-                  <DoorOpen size={15} />
-                  {isCreating ? 'Creating...' : draftQuestions.length > 0
-                    ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''})`
-                    : 'Create New Session'}
+                  {isCreating ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Setting up your session…
+                    </>
+                  ) : (
+                    <>
+                      <DoorOpen size={15} />
+                      {draftQuestions.length > 0
+                        ? `Create Session (${draftQuestions.length} draft${draftQuestions.length !== 1 ? 's' : ''})`
+                        : 'Create New Session'}
+                    </>
+                  )}
                 </button>
                 {draftQuestions.length > 0 && (
                   <p className="mt-2 text-[11px] text-vybe-blue text-center">
@@ -301,19 +375,20 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         }
       />
 
-      <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
         {/* Session ID Card */}
         <div className="mb-4 rounded-2xl border border-border-light bg-white p-4 shadow-card-muted">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
-              <p className="mt-1 font-mono text-[15px] font-bold tracking-wider text-ink">{sessionId}</p>
+              <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId!.toUpperCase()}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={copySessionId}
+                disabled={copied}
                 title="Copy session ID"
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all ${
+                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
                   copied
                     ? 'border-status-success/30 bg-tint-green text-status-success-dark'
                     : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
@@ -353,7 +428,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.participantId.charCodeAt(0) * 37 + p.participantId.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
@@ -390,7 +465,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.id.charCodeAt(0) * 37 + p.id.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0">
+                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
@@ -459,7 +534,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               >
                 {quizState.questions.length === 0
                   ? 'Add questions in Lab first'
-                  : `▶ Start Session (${quizState.questions.length} Q)`}
+                  : `▶ Start Quiz (${quizState.questions.length} Question${quizState.questions.length !== 1 ? 's' : ''})`}
               </button>
             )}
 
@@ -473,10 +548,16 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             )}
 
             {(isActive || isExpired) && quizState.resultsReleased && (
-              <div className="py-3 px-4 bg-tint-green rounded-2xl border border-status-success/20 text-center">
-                <span className="text-[13px] font-bold text-status-success-dark">
+              <div className="rounded-2xl border border-status-success/20 bg-tint-green px-4 py-3">
+                <p className="m-0 mb-2.5 text-center text-[13px] font-bold text-status-success-dark">
                   ✅ Results released — participants can view matches
-                </span>
+                </p>
+                <button
+                  onClick={() => setActivePage('quiz')}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-0 bg-status-success py-2.5 text-[13px] font-bold text-white cursor-pointer active:scale-[0.97] transition-all"
+                >
+                  View my matches →
+                </button>
               </div>
             )}
           </div>

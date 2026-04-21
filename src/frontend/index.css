@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @config "../../tailwind.config.js";
 
+@theme {
+  --font-sans: 'Nunito', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+}
+
 @layer base {
   * {
     margin: 0;
@@ -50,10 +54,201 @@
     border-color: #539DC0;
     box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.12);
   }
+
+  /* ── Universal button press animation ─────────────────── */
+  button {
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.12s ease;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.94);
+    opacity: 0.88;
+  }
+
+  /* ── Disabled state ─────────────────────────────────── */
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  /* ── Focus rings (keyboard / switch-access a11y) ──── */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline: 2px solid rgba(83, 157, 192, 0.75);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid rgba(83, 157, 192, 0.75);
+    outline-offset: 0;
+  }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DARK MODE
+   Strategy: Tailwind v4 compiles color tokens as OKLCH channel
+   tuples so CSS-variable overrides alone don't fix utility
+   classes like `text-ink`. We use explicit class selectors with
+   !important to guarantee every colour adapts correctly.
+   ══════════════════════════════════════════════════════════ */
+
+.dark { color-scheme: dark; }
+
+/* ── Text ─────────────────────────────────────────────────── */
+.dark .text-ink          { color: #EEF0FA !important; }
+.dark .text-ink-muted    { color: #B0B8D8 !important; }
+.dark .text-vybe-gold    { color: #E8A830 !important; }  /* was #9A7200 (near-black) */
+.dark .text-vybe-red     { color: #F14573 !important; }
+.dark .text-vybe-blue    { color: #5DB5D8 !important; }
+.dark .text-vybe-yellow  { color: #FEC539 !important; }
+.dark .text-vybe-purple  { color: #8B90B8 !important; }
+.dark .text-status-success-dark { color: #22D46A !important; }
+.dark .text-status-success      { color: #34D464 !important; }
+
+/* White text at reduced opacity → keep white, it's on dark headers */
+/* (text-white/* classes are on gradient-header areas — already readable) */
+
+/* ── Backgrounds ─────────────────────────────────────────── */
+/* Page surface */
+.dark .bg-surface-page   { background-color: #0B0C1A !important; }
+
+/* Cards (bg-white) float above the page */
+.dark .bg-white          { background-color: #1A1D35 !important; }
+
+/* Tints — must clearly contrast with card bg #1A1D35 */
+.dark .bg-tint-blue      { background-color: #0C2845 !important; }
+.dark .bg-tint-yellow    { background-color: #2E2200 !important; }
+.dark .bg-tint-pink      { background-color: #2C0E1C !important; }
+.dark .bg-tint-green     { background-color: #0A2618 !important; }
+.dark .bg-tint-muted     { background-color: #22273D !important; }
+
+/* Brand alpha tints used on dark cards — boost opacity */
+/* e.g. bg-vybe-red/10, bg-vybe-blue/12, bg-vybe-yellow/18  */
+/* These use rgba so we can't target them directly — handled
+   by surrounding .bg-white card being dark enough         */
+
+/* Nav bar */
+.dark nav                { background-color: #141728 !important;
+                           border-top-color: #2A2E52 !important; }
+
+/* ── Borders ─────────────────────────────────────────────── */
+.dark .border-border-light { border-color: #2E3360 !important; }
+
+/* ── Inputs ──────────────────────────────────────────────── */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1A1D35 !important;
+  border-color: #2E3360 !important;
+  color: #EEF0FA !important;
+}
+/* Inline inputs inside cards — keep transparent bg, always readable */
+.dark .inline-input,
+.dark .inline-input::placeholder { color: #EEF0FA !important; background-color: transparent !important; }
+html:not(.dark) .inline-input,
+html:not(.dark) .inline-input::placeholder { color: #1A1D35 !important; background-color: transparent !important; }
+.dark input::placeholder,
+.dark textarea::placeholder { color: #6870A0 !important; }
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #539DC0 !important;
+  box-shadow: 0 0 0 3px rgba(83, 157, 192, 0.22) !important;
+}
+
+/* ── Misc ────────────────────────────────────────────────── */
+/* Transition page bg smoothly when toggling */
+.dark .transition-colors, .dark.transition-colors { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
+
+/* ═══════════════════════════════════════════════════════════
+   LIGHT MODE
+   The default Tailwind values produce a flat, too-white UI.
+   We pull depth from the app's navy-lavender palette:
+     page   #E8EDF8  (cool blue-grey — clearly behind cards)
+     card   #FFFFFF  (pure white — pops against the page)
+     nav    #F0F4FF  (elevated tint — separates from card content)
+   ══════════════════════════════════════════════════════════ */
+
+html:not(.dark) { color-scheme: light; }
+
+/* Page surface — deeper blue-grey so cards clearly lift off */
+html:not(.dark) .bg-surface-page { background-color: #E8EDF8 !important; }
+
+/* Cards — stay white, add a touch of shadow for lift */
+html:not(.dark) .bg-white {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 2px 16px rgba(82, 96, 168, 0.09) !important;
+}
+
+/* Borders — more visible so card edges and dividers read clearly */
+html:not(.dark) .border-border-light { border-color: #C4CADF !important; }
+
+/* Nav bar — soft lavender surface, stronger top border */
+html:not(.dark) nav {
+  background-color: #F0F4FF !important;
+  border-top-color: #C4CADF !important;
+  box-shadow: 0 -2px 12px rgba(82, 96, 168, 0.07) !important;
+}
+
+/* Inputs — slightly cooler background, visible border */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: #F3F6FC !important;
+  border-color: #C8CEDF !important;
+  color: #1A1D35 !important;
+}
+
+/* Tints — more saturated so they read on white cards */
+html:not(.dark) .bg-tint-blue   { background-color: #DDF0FA !important; }
+html:not(.dark) .bg-tint-yellow { background-color: #FFF0C0 !important; }
+html:not(.dark) .bg-tint-pink   { background-color: #FAD8E8 !important; }
+html:not(.dark) .bg-tint-green  { background-color: #CCFADE !important; }
+html:not(.dark) .bg-tint-muted  { background-color: #E4E7F4 !important; }
+
+/* ── Keyframes ──────────────────────────────────────────── */
 @keyframes confettiBurst {
   0%   { transform: translateY(0) scale(1); opacity: 1; }
   60%  { opacity: 1; }
   100% { transform: translateY(-220px) scale(0.4) rotate(360deg); opacity: 0; }
 }
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideFromRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes slideFromLeft {
+  from { transform: translateX(-40px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+.animate-slide-up          { animation: slideUp 0.25s ease-out forwards; }
+.animate-slide-down        { animation: slideDown 0.25s ease-out forwards; }
+.animate-fade-in           { animation: fadeIn 0.25s ease-out forwards; }
+.animate-shimmer           { animation: shimmer 2s ease-in-out infinite; }
+.animate-slide-from-right  { animation: slideFromRight 0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+.animate-slide-from-left   { animation: slideFromLeft  0.22s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }

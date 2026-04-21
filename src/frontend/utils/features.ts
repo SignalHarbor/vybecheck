@@ -5,9 +5,7 @@ export function useFeatures() {
   const { twitterUsername } = useAuthStore();
 
   const isAdmin = Boolean(twitterUsername && ADMIN_USERS.includes(twitterUsername));
-  // In Vite, import.meta.env.DEV is true in development mode
-  // const isDev = import.meta.env.DEV;
-  const isDev = false
+  const isDev = false;
 
   return {
     isAdmin,

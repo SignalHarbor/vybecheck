@@ -10,7 +10,7 @@ export interface DraftQuestion {
 
 interface DraftStore {
   draftQuestions: DraftQuestion[];
-  addDraft: (prompt: string, options: [string, string], ownerResponse?: string, isAIGenerated?: boolean) => void;
+  addDraft: (prompt: string, options: [string, string], ownerResponse?: string, isAIGenerated?: boolean) => string;
   removeDraft: (id: string) => void;
   setOwnerResponse: (id: string, response: string) => void;
   clearDrafts: () => void;
@@ -34,6 +34,7 @@ export const useDraftStore = create<DraftStore>((set) => ({
     set((state) => ({ 
       draftQuestions: [...state.draftQuestions, draft] 
     }));
+    return draft.id;
   },
   
   removeDraft: (id) => {

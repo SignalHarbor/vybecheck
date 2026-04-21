@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Zap, Radio, Sparkles, ChevronRight, ChevronLeft, Home } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -7,6 +7,9 @@ import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
 import { MatchCard } from '../components/MatchCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Confetti } from '../components/Confetti';
+import { haptic } from '../utils/haptic';
+import { useCountUp } from '../utils/useCountUp';
 import type { MatchTier } from '../../shared/types';
 
 const TIER_COSTS: Record<MatchTier, number> = {
@@ -26,7 +29,7 @@ export function QuizPage() {
   const { send } = useWebSocketStore();
   const { vybesBalance, hasFeatureUnlock, authToken, signInWithTwitter } = useAuthStore();
   const isAuthenticated = authToken !== null;
-  const { setActivePage } = useUIStore();
+  const { activePage, setActivePage, showNotification } = useUIStore();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedTier, setSelectedTier] = useState<MatchTier>('PREVIEW');
   const prevQuestionCountRef = useRef(0);
@@ -37,10 +40,23 @@ export function QuizPage() {
   // Confetti burst on quiz completion
   const [showConfetti, setShowConfetti] = useState(false);
   const prevCompletedRef = useRef(false);
+  const prevMatchCountRef = useRef(0);
+
+  // Question slide direction
+  const questionDirRef = useRef<'forward' | 'back'>('forward');
+
+  // Answer lock-in flash
+  const [lockedOption, setLockedOption] = useState<string | null>(null);
 
   // Configurable threshold: percentage of participants that must complete before matches can be calculated
   // 100 = all participants must complete, 50 = half must complete, etc.
   const COMPLETION_THRESHOLD_PERCENT = 100;
+
+  // Results count-up — hoisted before early returns (hooks must be unconditional)
+  const isExpired = quizState?.status === 'expired';
+  const summaryAnswered = isExpired ? quizState!.myResponses.filter(r => r !== '').length : 0;
+  const animatedAnswered = useCountUp(summaryAnswered, 800, isExpired);
+  const animatedVybes = useCountUp(isExpired ? vybesBalance : 0, 1200, isExpired);
 
   // Navigate to new questions when they're added
   useEffect(() => {
@@ -82,15 +98,30 @@ export function QuizPage() {
     prevCompletedRef.current = isNowCompleted;
   }, [quizState?.myResponses]);
 
+  // Trigger confetti when matches first arrive
+  useEffect(() => {
+    const count = matchState?.matches?.length ?? 0;
+    if (count > 0 && prevMatchCountRef.current === 0) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 1800);
+    }
+    prevMatchCountRef.current = count;
+  }, [matchState?.matches?.length]);
+
   const submitResponse = (questionId: string, optionChosen: string) => {
+    haptic();
     send({
       type: 'response:submit',
       data: { questionId, optionChosen }
     });
+    showNotification('✓ Response recorded');
+    setLockedOption(optionChosen);
+    setTimeout(() => setLockedOption(null), 500);
 
     // Move to next question after answering
     if (quizState && currentQuestionIndex < quizState.questions.length - 1) {
-      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 300);
+      questionDirRef.current = 'forward';
+      setTimeout(() => setCurrentQuestionIndex(currentQuestionIndex + 1), 600);
     }
   };
 
@@ -257,12 +288,16 @@ export function QuizPage() {
         <div className="flex-1 flex flex-col items-center justify-center px-5 text-center">
           <div className="text-5xl mb-4 animate-pulse">⏳</div>
           <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Session Not Started</h2>
-          <p className="text-[13px] text-ink-muted m-0 mb-5">Waiting for the host to start the session...</p>
+          <p className="text-[13px] text-ink-muted m-0 mb-5">
+            {isOwner
+              ? 'Head to Lobby when you\'re ready to start the session.'
+              : 'Waiting for the host to start the session...'}
+          </p>
           <button
-            onClick={() => setActivePage('lobby')}
+            onClick={() => setActivePage(isOwner ? 'lobby' : 'lobby')}
             className="flex items-center gap-2 rounded-2xl border border-border-light bg-white px-5 py-3 text-[13px] font-bold text-vybe-blue cursor-pointer shadow-card-muted active:scale-[0.97]"
           >
-            <Radio size={14} /> Go to Lobby
+            <Radio size={14} /> {isOwner ? 'Go to Lobby to Start' : 'Go to Lobby'}
           </button>
         </div>
       </div>
@@ -281,6 +316,55 @@ export function QuizPage() {
     );
   }
 
+  // Session ended — show a summary screen
+  if (quizState.status === 'expired') {
+    const totalQs = quizState.questions.length;
+    return (
+      <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
+        <Header title="Quiz" subtitle="Session wrapped 🎉" pills={headerPills} />
+        <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Summary card */}
+          <div className="mb-4 rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
+            <div className="mb-4 w-14 h-14 bg-tint-yellow rounded-2xl flex items-center justify-center text-3xl">🏁</div>
+            <h2 className="text-[17px] font-extrabold text-ink mb-1">Session Ended</h2>
+            <p className="text-[13px] text-ink-muted mb-5">Here's how you did</p>
+            <div className="flex items-stretch gap-3 w-full mb-5">
+              <div className="flex-1 rounded-2xl bg-tint-blue p-3 text-center">
+                <p className="text-[22px] font-black text-vybe-blue">{animatedAnswered}/{totalQs}</p>
+                <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">ANSWERED</p>
+              </div>
+              <div className="flex-1 rounded-2xl bg-tint-yellow p-3 text-center">
+                <p className="text-[22px] font-black text-vybe-gold">{animatedVybes}</p>
+                <p className="text-[10px] font-bold text-ink-muted tracking-[0.6px]">VYBES</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActivePage('lobby')}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-0 bg-gradient-red py-3 text-[14px] font-bold text-white shadow-glow-red cursor-pointer active:scale-[0.97]"
+            >
+              <Home size={15} /> Back to Lobby
+            </button>
+          </div>
+
+          {/* Show matches if released */}
+          {quizState.resultsReleased && matchState?.matches && matchState.matches.length > 0 && (
+            <>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">YOUR MATCHES</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {matchState.matches.map((match, i) => (
+                  <MatchCard key={match.participantId} match={match} rank={i + 1} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const currentQuestion = quizState.questions[currentQuestionIndex];
   const currentResponse = quizState.myResponses[currentQuestionIndex];
   const hasAnswered = currentResponse !== '';
@@ -291,32 +375,29 @@ export function QuizPage() {
   // Calculate completion locally - check if all questions have been answered
   const isCompleted = quizState.myResponses.every(r => r !== '');
 
+  // Touch swipe to navigate questions
+  const touchStartX = useRef<number | null>(null);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 50) return; // threshold
+    if (dx < 0 && currentQuestionIndex < totalQuestions - 1 && hasAnswered) {
+      questionDirRef.current = 'forward';
+      setCurrentQuestionIndex(i => i + 1); // swipe left = next
+    } else if (dx > 0 && currentQuestionIndex > 0) {
+      questionDirRef.current = 'back';
+      setCurrentQuestionIndex(i => i - 1); // swipe right = prev
+    }
+  };
+
   return (
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header title="Quiz" subtitle="Answer time ⚡" />
 
-      {/* Confetti burst overlay */}
-      {showConfetti && (
-        <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-          {[...Array(18)].map((_, i) => {
-            const colors = ['#FEC539','#F14573','#539DC0','#63688C','#22C55E'];
-            const color = colors[i % colors.length];
-            const left = `${5 + (i * 5.5) % 90}%`;
-            const delay = `${(i * 0.07).toFixed(2)}s`;
-            return (
-              <div
-                key={i}
-                className="absolute top-1/3 h-2.5 w-2.5 rounded-full"
-                style={{
-                  left,
-                  background: color,
-                  animation: `confettiBurst 1.6s ease-out ${delay} forwards`,
-                }}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* Canvas confetti */}
+      <Confetti active={showConfetti} />
 
       <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Progress Bar */}
@@ -349,7 +430,12 @@ export function QuizPage() {
         {/* Question Card */}
         {!isCompleted ? (
           <>
-          <div className="rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center">
+          <div
+            key={currentQuestionIndex}
+            className={`rounded-3xl border-[1.5px] border-vybe-blue/20 bg-white p-5 shadow-card-blue flex flex-col items-center text-center ${questionDirRef.current === 'forward' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-5">
               <Zap size={24} strokeWidth={2} className="text-vybe-blue" />
             </div>
@@ -361,6 +447,7 @@ export function QuizPage() {
             <div className="w-full grid grid-cols-2 gap-2">
               {currentQuestion.options.map((option) => {
                 const isSelected = hasAnswered && currentResponse === option;
+                const isLocking = lockedOption === option;
                 return (
                   <button
                     key={option}
@@ -369,12 +456,14 @@ export function QuizPage() {
                     className={`rounded-2xl py-4 px-3 text-center transition-all [-webkit-tap-highlight-color:transparent] disabled:cursor-not-allowed ${
                       !isAuthenticated
                         ? 'border border-border-light bg-surface-page opacity-60'
-                        : isSelected
-                          ? 'border-2 border-status-success bg-tint-green text-status-success-dark font-extrabold'
-                          : 'border border-border-light bg-surface-page hover:border-vybe-blue/30 cursor-pointer active:scale-[0.97]'
+                        : isLocking
+                          ? 'border-2 border-status-success bg-status-success text-white font-extrabold scale-[1.06] shadow-[0_4px_20px_rgba(34,197,94,0.5)]'
+                          : isSelected
+                            ? 'border-2 border-status-success bg-tint-green text-status-success-dark font-extrabold'
+                            : 'border border-border-light bg-surface-page hover:border-vybe-blue/30 cursor-pointer active:scale-[0.97]'
                     }`}
                   >
-                    <span className={`text-[14px] font-semibold ${isSelected ? 'text-status-success-dark' : 'text-ink'}`}>
+                    <span className={`text-[14px] font-semibold ${isLocking || isSelected ? 'text-status-success-dark' : 'text-ink'} ${isLocking ? 'text-white' : ''}`}>
                       {option}{isSelected && ' ✓'}
                     </span>
                   </button>
@@ -386,7 +475,7 @@ export function QuizPage() {
           {/* Prev / Next navigation */}
           <div className="flex items-center justify-between gap-3 mt-4">
             <button
-              onClick={() => setCurrentQuestionIndex(i => Math.max(0, i - 1))}
+              onClick={() => { questionDirRef.current = 'back'; setCurrentQuestionIndex(i => Math.max(0, i - 1)); }}
               disabled={currentQuestionIndex === 0}
               className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
             >
@@ -396,7 +485,7 @@ export function QuizPage() {
               {currentQuestionIndex + 1} / {totalQuestions}
             </span>
             <button
-              onClick={() => setCurrentQuestionIndex(i => Math.min(totalQuestions - 1, i + 1))}
+              onClick={() => { questionDirRef.current = 'forward'; setCurrentQuestionIndex(i => Math.min(totalQuestions - 1, i + 1)); }}
               disabled={currentQuestionIndex === totalQuestions - 1 || !hasAnswered}
               className="flex items-center gap-1.5 rounded-2xl border border-border-light bg-white px-4 py-2.5 text-[13px] font-bold text-ink disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition-all"
             >
@@ -406,8 +495,8 @@ export function QuizPage() {
           </>
 
         ) : !quizState.resultsReleased && !isOwner ? (
-          <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
-            <div className="w-12 h-12 bg-tint-yellow rounded-2xl flex items-center justify-center mb-5">
+          <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center animate-fade-in">
+            <div className="w-12 h-12 bg-tint-yellow rounded-2xl flex items-center justify-center mb-5 animate-shimmer">
               <Sparkles size={24} className="fill-vybe-yellow text-vybe-yellow" />
             </div>
             <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Quiz Complete!</h2>
