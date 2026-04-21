@@ -32,12 +32,12 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
         <p className="text-white/50 text-[14px] -mt-1 mb-2">Live quiz matching for Twitter Spaces</p>
 
         {error && (
-          <div className="w-full max-w-[320px] bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-down">
+          <div className="w-full max-w-[320px] bg-gradient-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[14px] font-bold shadow-glow-red animate-slide-down">
             {error}
           </div>
         )}
         {notification && (
-          <div className="w-full max-w-[320px] bg-gradient-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down">
+          <div className="w-full max-w-[320px] bg-gradient-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[14px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-down">
             {notification}
           </div>
         )}
@@ -61,7 +61,7 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
             </>
           )}
         </button>
-        <p className="text-white/35 text-[12px] max-w-[320px] text-center -mt-1 mb-2">
+        <p className="text-white/35 text-[13px] max-w-[320px] text-center -mt-1 mb-2">
           Host a session, build quizzes &amp; see your matches
         </p>
 
@@ -81,12 +81,12 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
             value={joinSessionId}
             onChange={(e) => setJoinSessionId(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && joinSession()}
-            className="flex-1 border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-white/35"
+            className="flex-1 border-0 bg-transparent text-[15px] text-white outline-none placeholder:text-white/35"
           />
           {joinSessionId.length > 0 && (
             <button
               onClick={joinSession}
-              className="shrink-0 cursor-pointer rounded-xl border-0 bg-gradient-blue px-3.5 py-1.5 text-[12px] font-bold text-white"
+              className="shrink-0 cursor-pointer rounded-xl border-0 bg-gradient-blue px-3.5 py-1.5 text-[13px] font-bold text-white"
             >
               Join →
             </button>

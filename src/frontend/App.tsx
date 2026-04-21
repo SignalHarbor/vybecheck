@@ -350,7 +350,7 @@ function App() {
           {notification && (
             <div
               onClick={clearNotification}
-              className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              className="bg-linear-to-br from-status-success to-status-success-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[14px] font-bold shadow-[0_4px_16px_rgba(34,197,94,0.3)] animate-slide-up pointer-events-auto cursor-pointer select-none"
               title="Tap to dismiss"
             >
               {notification}
@@ -359,7 +359,7 @@ function App() {
           {error && (
             <div
               onClick={clearError}
-              className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-glow-red animate-slide-up pointer-events-auto cursor-pointer select-none"
+              className="bg-linear-to-br from-vybe-red to-vybe-red-dark text-white py-3 px-5 rounded-2xl mb-2 text-center text-[14px] font-bold shadow-glow-red animate-slide-up pointer-events-auto cursor-pointer select-none"
               title="Tap to dismiss"
             >
               {error}
@@ -368,7 +368,7 @@ function App() {
           {info && (
             <div
               onClick={clearInfo}
-              className="bg-ink text-white py-3 px-5 rounded-2xl mb-2 text-center text-[13px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.25)] animate-slide-up pointer-events-auto cursor-pointer select-none"
+              className="bg-ink text-white py-3 px-5 rounded-2xl mb-2 text-center text-[14px] font-bold shadow-[0_4px_16px_rgba(0,0,0,0.25)] animate-slide-up pointer-events-auto cursor-pointer select-none"
               title="Tap to dismiss"
             >
               {info}
@@ -394,11 +394,11 @@ function App() {
           >
             <div className="flex items-center gap-2.5">
               <span className="h-2 w-2 rounded-full bg-vybe-red animate-pulse shrink-0" />
-              <span className="text-[13px] font-bold text-ink">
+              <span className="text-[14px] font-bold text-ink">
                 {isOwner ? '🎙 Session active — back to Lobby' : '⚡ Session active — back to Quiz'}
               </span>
             </div>
-            <span className="text-[12px] font-bold text-vybe-red shrink-0">Go →</span>
+            <span className="text-[13px] font-bold text-vybe-red shrink-0">Go →</span>
           </button>
         </div>
       )}
