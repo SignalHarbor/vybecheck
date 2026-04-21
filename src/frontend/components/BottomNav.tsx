@@ -9,6 +9,7 @@ interface BottomNavProps {
   hasSession: boolean;
   draftCount: number;
   isAuthenticated: boolean;
+  hasActiveSession: boolean;
 }
 
 interface NavItem {
@@ -19,7 +20,7 @@ interface NavItem {
   locked?: boolean;
 }
 
-export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated }: BottomNavProps) {
+export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCount, isAuthenticated, hasActiveSession }: BottomNavProps) {
   if (activePage === 'start') return null;
 
   const navItems: NavItem[] = [
@@ -68,6 +69,13 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
               isActive ? 'bg-tint-pink' : 'bg-transparent'
             }`}>
               <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
+              {/* Active session pulse on Lobby icon */}
+              {id === 'lobby' && hasActiveSession && !isActive && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-vybe-red">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-vybe-red opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-vybe-red" />
+                </span>
+              )}
               {locked && (
                 <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ink-muted/20">
                   <Lock size={7} className="text-ink-muted" />
