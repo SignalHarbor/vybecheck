@@ -294,7 +294,7 @@ export function VybesPage() {
                     } ${isPurchasing ? 'opacity-70' : ''}`}
                   >
                     {popular && (
-                      <span className="absolute -top-2.5 right-16 rounded-full bg-vybe-yellow px-2 py-0.5 text-[9px] font-extrabold tracking-[0.5px] text-ink">
+                      <span className="absolute -top-2.5 right-16 rounded-full bg-vybe-yellow px-2 py-0.5 text-[10px] font-extrabold tracking-[0.5px] text-ink">
                         POPULAR
                       </span>
                     )}

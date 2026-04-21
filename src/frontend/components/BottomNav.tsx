@@ -74,7 +74,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
                 onNavigate(id);
               }
             }}
-            className={`flex flex-col items-center gap-0.5 rounded-2xl bg-transparent border-none px-3 py-1 text-[10px] transition-all [-webkit-tap-highlight-color:transparent] ${
+            className={`flex flex-col items-center gap-0.5 rounded-2xl bg-transparent border-none px-3 py-1 text-[11px] leading-none transition-all [-webkit-tap-highlight-color:transparent] ${
               locked
                 ? 'cursor-pointer opacity-40'
                 : 'cursor-pointer active:scale-95'
@@ -101,7 +101,7 @@ export function BottomNav({ activePage, onNavigate, isOwner, hasSession, draftCo
                 </span>
               )}
               {!locked && badge !== undefined && badge > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3.75 w-3.75 items-center justify-center rounded-full bg-vybe-red text-[8px] font-extrabold text-white animate-pulse">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-vybe-red text-[9px] font-extrabold text-white animate-pulse">
                   {badge}
                 </span>
               )}
