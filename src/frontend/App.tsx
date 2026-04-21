@@ -47,6 +47,13 @@ function App() {
     }
   }, []);
 
+  // Signed-in users shouldn't be on 'start' — default to Lobby
+  useEffect(() => {
+    if (isSignedIn && activePage === 'start') {
+      setActivePage(authToken ? 'lab' : 'lobby');
+    }
+  }, [isSignedIn, activePage, authToken, setActivePage]);
+
   // WebSocket setup (skip on transient pages that redirect away immediately)
   const isTransientPage = ['/auth/callback', '/purchase/success', '/purchase/cancel', '/purchase/error']
     .includes(window.location.pathname);
@@ -302,11 +309,6 @@ function App() {
         {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
       </div>
     );
-  }
-
-  // Signed-in users shouldn't be on 'start' — default to Lobby
-  if (activePage === 'start') {
-    setActivePage(authToken ? 'lab' : 'lobby');
   }
 
   // Active session banner: show when user has a session but isn't on Lobby or Quiz
