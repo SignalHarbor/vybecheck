@@ -336,7 +336,6 @@ function App() {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <StartPage prefilledSessionId={deeplinkSessionId} />
-        {/* DEV: show onboarding even on start page for preview */}
         {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
       </div>
     );
