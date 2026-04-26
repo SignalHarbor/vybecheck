@@ -13,7 +13,7 @@ import { parseJoinInput } from '../utils/parseJoinInput';
 
 /** Sanitise and cap a raw session code input to 6 valid chars. */
 const sanitiseCode = (raw: string): string =>
-  raw.replace(/\s/g, '').toUpperCase().slice(0, 6);
+  raw.replace(/\s/g, '').slice(0, 6);
 
 /** True when the value looks like a complete session code (exactly 6 non-space chars). */
 const isValidCode = (v: string): boolean => v.trim().length === 6;
@@ -206,7 +206,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               onKeyDown={(e) => e.key === 'Enter' && handleJoinSession()}
               placeholder="e.g. aB3xP7"
               maxLength={6}
-              autoCapitalize="characters"
+              autoCapitalize="none"
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
