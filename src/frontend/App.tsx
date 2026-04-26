@@ -17,6 +17,7 @@ import { PurchaseCancel } from './pages/PurchaseCancel';
 import { PurchaseError } from './pages/PurchaseError';
 import { AuthCallback } from './pages/AuthCallback';
 import OnboardingPage, { ONBOARDING_KEY } from './pages/OnboardingPage';
+import { analytics } from './utils/analytics';
 
 function App() {
   // Zustand stores
@@ -25,6 +26,11 @@ function App() {
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
   const { activePage, setActivePage, notification, error, info, showNotification, showError, showInfo, clearNotification, clearError, clearInfo } = useUIStore();
   const { draftQuestions } = useDraftStore();
+
+  // Track page views whenever the active tab changes
+  useEffect(() => {
+    analytics.capture('$pageview', { page: activePage });
+  }, [activePage]);
 
   // Scroll position memory — restore per-tab scroll on tab switch
   const scrollRefs = useRef<Partial<Record<string, number>>>({});
@@ -154,7 +160,9 @@ function App() {
         setParticipantId(message.data.participantId);
         setIsOwner(true);
         setVybesBalance(message.data.vybesBalance);
-        setActivePage('lab'); // Navigate to lab page for owner
+        setActivePage('lab');
+        analytics.capture('session_created', { session_id: message.data.sessionId });
+        analytics.group('session', message.data.sessionId, { session_id: message.data.sessionId, is_owner: true });
         break;
 
       case 'session:joined':
@@ -168,6 +176,8 @@ function App() {
         }
         // Owner → Lab to build questions; participant → Quiz to answer
         setActivePage(message.data.isOwner ? 'lab' : 'quiz');
+        analytics.capture('session_joined', { session_id: message.data.sessionId, is_owner: message.data.isOwner });
+        analytics.group('session', message.data.sessionId, { session_id: message.data.sessionId, is_owner: message.data.isOwner });
         break;
 
       case 'session:reconnected':
@@ -198,6 +208,7 @@ function App() {
       case 'session:results-released':
         updateQuizState((prev) => prev ? { ...prev, resultsReleased: true, status: 'expired' } : null);
         showNotification('Results are now available!');
+        analytics.capture('session_results_released', { session_id: useQuizStore.getState().sessionId });
         break;
 
       case 'quiz:state':
@@ -272,6 +283,13 @@ function App() {
           isLoading: false,
         });
         setVybesBalance(message.data.vybesBalance);
+        analytics.capture('matches_unlocked', {
+          session_id: useQuizStore.getState().sessionId,
+          tier: message.data.tier,
+          cost: message.data.cost,
+          match_count: message.data.matches.length,
+          remaining_balance: message.data.vybesBalance,
+        });
         break;
 
       case 'credits:balance':

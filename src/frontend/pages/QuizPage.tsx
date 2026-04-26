@@ -11,6 +11,7 @@ import { Confetti } from '../components/Confetti';
 import { haptic } from '../utils/haptic';
 import { useCountUp } from '../utils/useCountUp';
 import type { MatchTier } from '../../shared/types';
+import { analytics } from '../utils/analytics';
 
 const TIER_COSTS: Record<MatchTier, number> = {
   PREVIEW: 0,
@@ -94,6 +95,11 @@ export function QuizPage() {
     if (isNowCompleted && !prevCompletedRef.current) {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 1800);
+      analytics.capture('quiz_completed', {
+        session_id: sessionId,
+        response_count: quizState.myResponses.filter(r => r !== '').length,
+        question_count: quizState.questions.length,
+      });
     }
     prevCompletedRef.current = isNowCompleted;
   }, [quizState?.myResponses]);
@@ -114,8 +120,10 @@ export function QuizPage() {
       type: 'response:submit',
       data: { questionId, optionChosen }
     });
-    showNotification('✓ Response recorded');
-    setLockedOption(optionChosen);
+    showNotification('✓ Response recorded');    analytics.capture('response_submitted', {
+      session_id: sessionId,
+      question_index: currentQuestionIndex,
+    });    setLockedOption(optionChosen);
     setTimeout(() => setLockedOption(null), 500);
 
     // Move to next question after answering
@@ -133,8 +141,16 @@ export function QuizPage() {
   const handleTierButtonClick = (tier: MatchTier) => {
     if (hasTierAccess(tier) || TIER_COSTS[tier] === 0) {
       getMatches(tier);
+      analytics.capture('matches_viewed', { session_id: sessionId, tier, already_unlocked: true });
     } else {
       setPendingTier(tier);
+      analytics.capture('match_unlock_attempted', {
+        session_id: sessionId,
+        tier,
+        cost: TIER_COSTS[tier],
+        balance: vybesBalance,
+        can_afford: vybesBalance >= TIER_COSTS[tier],
+      });
     }
   };
 

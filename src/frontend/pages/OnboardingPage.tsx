@@ -8,12 +8,13 @@
  * Adapted from the DevOnboardingScreen reference, using vybecheck's
  * Tailwind design tokens instead of ThemeContext/useColors.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DoorOpen, FlaskConical, Zap, Sparkles,
   ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import logo from '../assets/logo.png';
+import { analytics } from '../utils/analytics';
 
 export const ONBOARDING_KEY = 'vybecheck_onboarded';
 
@@ -98,6 +99,14 @@ export default function OnboardingPage({ onComplete }: Props) {
   const [current, setCurrent] = useState(0);
   const [fading, setFading]   = useState(false);
 
+  useEffect(() => {
+    analytics.capture('onboarding_started');
+  }, []);
+
+  useEffect(() => {
+    analytics.capture('onboarding_step_viewed', { step: current + 1, slide_id: SLIDES[current].id });
+  }, [current]);
+
   const slide  = SLIDES[current];
   const accent = slide.accentColor;
   const total  = SLIDES.length;
@@ -129,7 +138,7 @@ export default function OnboardingPage({ onComplete }: Props) {
       {/* Skip button */}
       {!slide.isFinal && (
         <button
-          onClick={onComplete}
+          onClick={() => { analytics.capture('onboarding_skipped', { at_step: current + 1, slide_id: slide.id }); onComplete(); }}
           className="absolute top-12 right-4 z-10 flex cursor-pointer items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5"
         >
           <span className="text-[12px] font-semibold text-white/55">Skip</span>
@@ -279,7 +288,7 @@ export default function OnboardingPage({ onComplete }: Props) {
         {/* Final CTA */}
         {slide.isFinal ? (
           <button
-            onClick={onComplete}
+            onClick={() => { analytics.capture('onboarding_completed'); onComplete(); }}
             className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-2xl border-none py-4 text-[16px] font-extrabold text-[#1A1A2E]"
             style={{
               background: `linear-gradient(135deg, #B8860B 0%, ${ACCENT.yellow} 100%)`,

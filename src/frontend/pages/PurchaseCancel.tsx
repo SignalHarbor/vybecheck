@@ -1,5 +1,8 @@
+import { analytics } from '../utils/analytics';
+
 export function PurchaseCancel() {
   const handleGoBack = () => {
+    analytics.capture('purchase_cancelled');
     window.location.href = '/';
   };
 
