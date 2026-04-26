@@ -3,7 +3,11 @@
  *
  * Full-screen overlay shown to new users on first sign-in.
  * App.tsx manages visibility via showOnboarding state and persists
- * the seen flag to localStorage via the ONBOARDING_KEY constant.
+ * completion to localStorage via the helpers exported below.
+ *
+ * Storage key is versioned (`:v1`). If onboarding is redesigned and we
+ * want to re-show it to existing users, bump the version suffix instead
+ * of writing migration code.
  *
  * Adapted from the DevOnboardingScreen reference, using vybecheck's
  * Tailwind design tokens instead of ThemeContext/useColors.
@@ -16,7 +20,27 @@ import {
 import logo from '../assets/logo.png';
 import { analytics } from '../utils/analytics';
 
-export const ONBOARDING_KEY = 'vybecheck_onboarded';
+export const ONBOARDING_KEY = 'vybecheck:onboarding:v1';
+const COMPLETE_VALUE = 'complete';
+
+/** Returns true if the current user has already completed or skipped onboarding. */
+export function isOnboardingComplete(): boolean {
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) === COMPLETE_VALUE;
+  } catch {
+    // localStorage can throw in private mode / disabled storage — treat as not-complete.
+    return false;
+  }
+}
+
+/** Marks onboarding as complete for the current user (idempotent). */
+export function markOnboardingComplete(): void {
+  try {
+    localStorage.setItem(ONBOARDING_KEY, COMPLETE_VALUE);
+  } catch {
+    // Best effort — failing to persist just means the user sees onboarding again.
+  }
+}
 
 // ── Design tokens (mirroring tailwind.config.js) ──────────────────
 const ACCENT = {

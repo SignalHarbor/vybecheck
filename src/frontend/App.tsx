@@ -16,7 +16,7 @@ import { PurchaseSuccess } from './pages/PurchaseSuccess';
 import { PurchaseCancel } from './pages/PurchaseCancel';
 import { PurchaseError } from './pages/PurchaseError';
 import { AuthCallback } from './pages/AuthCallback';
-import OnboardingPage, { ONBOARDING_KEY } from './pages/OnboardingPage';
+import OnboardingPage, { isOnboardingComplete, markOnboardingComplete } from './pages/OnboardingPage';
 import { analytics } from './utils/analytics';
 
 function App() {
@@ -63,17 +63,16 @@ function App() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [connected]);
 
-  // Onboarding — shown once per user on first sign-in
-  // TODO: BEFORE PUBLISHING — change this back to the line below so it only shows once:
-  // const [showOnboarding, setShowOnboarding] = useState(false);
-  // useEffect(() => {
-  //   if (isSignedIn && !localStorage.getItem(ONBOARDING_KEY)) {
-  //     setShowOnboarding(true);
-  //   }
-  // }, [isSignedIn]);
-  const [showOnboarding, setShowOnboarding] = useState(true); // DEV: always show for preview
+  // Onboarding — shown once per user on first sign-in.
+  // Persistence lives in localStorage under a versioned key (see OnboardingPage).
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (isSignedIn && !isOnboardingComplete()) {
+      setShowOnboarding(true);
+    }
+  }, [isSignedIn]);
   const completeOnboarding = () => {
-    localStorage.setItem(ONBOARDING_KEY, '1');
+    markOnboardingComplete();
     setShowOnboarding(false);
   };
 
