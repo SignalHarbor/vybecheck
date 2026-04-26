@@ -381,7 +381,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
-              <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId!.toUpperCase()}</p>
+              <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
