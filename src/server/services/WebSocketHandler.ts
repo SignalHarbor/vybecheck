@@ -120,7 +120,9 @@ export class WebSocketHandler {
         session.responses.push(response); // Direct push to avoid re-validation
       }
 
-      this.sessions.set(session.sessionId, session);
+      // Normalise to uppercase so lookups are case-insensitive regardless of
+      // how the ID was originally stored (older rows may be mixed-case).
+      this.sessions.set(session.sessionId.toUpperCase(), session);
     }
 
     logger.info({ count: activeSessionRows.length }, 'Hydrated sessions from database');
@@ -226,7 +228,7 @@ export class WebSocketHandler {
     };
 
     session.addParticipant(owner);
-    this.sessions.set(session.sessionId, session);
+    this.sessions.set(session.sessionId.toUpperCase(), session);
     this.connections.set(ws, { sessionId: session.sessionId, participantId });
 
     // Persist to DB
@@ -263,7 +265,9 @@ export class WebSocketHandler {
   }
 
   private handleSessionJoin(ws: WebSocket, data: { sessionId: string; username?: string }) {
-    const session = this.sessions.get(data.sessionId);
+    // Normalise to uppercase to match how IDs are stored in the map.
+    const normalisedId = data.sessionId.toUpperCase();
+    const session = this.sessions.get(normalisedId);
 
     if (!session) {
       this.sendError(ws, `Session ${data.sessionId} not found`);

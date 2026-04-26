@@ -79,7 +79,9 @@ export class QuizSession {
    * Generate a short, shareable session ID (6 chars)
    */
   private generateSessionId(): string {
-    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no i/l/o/0/1/I/L/O to avoid ambiguity
+    // Uppercase-only so codes are case-insensitive in practice.
+    // Excludes visually ambiguous chars: 0/O, 1/I/L.
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
     let id = '';
     for (let i = 0; i < 6; i++) {
       id += chars[Math.floor(Math.random() * chars.length)];
