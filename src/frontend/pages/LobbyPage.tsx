@@ -76,7 +76,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-vybe-yellow" />
           <span className="text-[11px] font-bold text-vybe-yellow">
-            {quizState?.status === 'live' ? 'Pre-game' : quizState?.status === 'expired' ? 'Session closed' : 'Session active'}
+            {quizState?.status === 'live' ? 'In lobby' : quizState?.status === 'expired' ? 'Session closed' : 'Session active'}
           </span>
         </div>
       ) : (

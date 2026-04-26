@@ -70,7 +70,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
               {quizState.status === 'live' && (
                 <>
                   <Clock size={9} className="text-vybe-yellow" />
-                  <span className="text-[10px] font-bold text-vybe-yellow">Pre-game</span>
+                  <span className="text-[10px] font-bold text-vybe-yellow">In Lobby</span>
                 </>
               )}
               {quizState.status === 'expired' && (
