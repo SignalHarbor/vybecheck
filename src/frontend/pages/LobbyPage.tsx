@@ -32,6 +32,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const createTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [showReleaseDialog, setShowReleaseDialog] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const copySessionId = () => {
@@ -331,8 +332,36 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   };
 
   const handleReleaseResults = () => {
+    const progress = quizState?.participantProgress ?? [];
+    // All participants — including the owner — are valid respondents and count toward completion.
+    // Only exclude participants who have gone offline (they may never finish).
+    const activeProgress = progress.filter(p => p.isActive);
+    const totalParticipants = activeProgress.length;
+    const doneParticipants = activeProgress.filter(p => p.completionPercent === 100).length;
+
+    // If not everyone is done, show a confirmation with context
+    if (totalParticipants > 0 && doneParticipants < totalParticipants) {
+      setShowReleaseDialog(true);
+      return;
+    }
+    // Everyone done (or no progress data yet) — release immediately
     send({ type: 'session:release-results' });
   };
+
+  const confirmReleaseResults = () => {
+    send({ type: 'session:release-results' });
+    setShowReleaseDialog(false);
+  };
+
+  // Derived completion counts for the release button UI.
+  // Counts all active participants (owner included — they answer too).
+  // Offline participants are excluded since they may never complete.
+  const releaseProgress = (() => {
+    const progress = quizState?.participantProgress ?? [];
+    const active = progress.filter(p => p.isActive);
+    const done = active.filter(p => p.completionPercent === 100).length;
+    return { done, total: active.length };
+  })();
 
   const handleTerminateSession = () => {
     setShowTerminateDialog(true);
@@ -526,25 +555,63 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         {/* Owner Controls */}
         {isOwner && (
           <div className="mb-4">
-            {isLobby && (
-              <button
-                onClick={handleStartSession}
-                disabled={quizState.questions.length === 0}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl border-0 py-3.5 cursor-pointer text-[14px] font-bold transition-all bg-gradient-to-br from-status-success to-status-success-dark text-white shadow-[0_4px_16px_rgba(34,197,94,0.3)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {quizState.questions.length === 0
-                  ? 'Add questions in Lab first'
-                  : `▶ Start Quiz (${quizState.questions.length} Question${quizState.questions.length !== 1 ? 's' : ''})`}
-              </button>
-            )}
+            {isLobby && (() => {
+              const noQuestions = quizState.questions.length === 0;
+              // participantCount includes the owner, so <=1 means no one else has joined
+              const aloneInSession = quizState.participantCount <= 1;
+              const isDisabled = noQuestions || aloneInSession;
+              return (
+                <>
+                  <button
+                    onClick={handleStartSession}
+                    disabled={isDisabled}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl border-0 py-3.5 cursor-pointer text-[14px] font-bold transition-all bg-gradient-to-br from-status-success to-status-success-dark text-white shadow-[0_4px_16px_rgba(34,197,94,0.3)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {noQuestions
+                      ? 'Add questions in Lab first'
+                      : aloneInSession
+                        ? '⏳ Waiting for others to join…'
+                        : `▶ Start Quiz (${quizState.questions.length} Question${quizState.questions.length !== 1 ? 's' : ''})`}
+                  </button>
+                  {aloneInSession && !noQuestions && (
+                    <p className="mt-2 text-center text-[11px] text-ink-muted">
+                      At least 1 other participant needs to join before you can start
+                    </p>
+                  )}
+                </>
+              );
+            })()}
 
             {isActive && !quizState.resultsReleased && (
-              <button
-                onClick={handleReleaseResults}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl border-0 py-3.5 cursor-pointer text-[14px] font-bold bg-gradient-to-br from-vybe-yellow to-vybe-yellow-dark text-ink shadow-glow-yellow active:scale-[0.97]"
-              >
-                🔓 Release Results
-              </button>
+              (() => {
+                const noParticipants = releaseProgress.total === 0;
+                const allDone = !noParticipants && releaseProgress.done === releaseProgress.total;
+
+                if (noParticipants) {
+                  return (
+                    <div className="rounded-2xl border border-border-light bg-surface-page px-4 py-3 text-center">
+                      <p className="m-0 text-[12px] text-ink-muted">No participants have joined — nothing to release results for</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={handleReleaseResults}
+                    className={`w-full flex items-center justify-center gap-2 rounded-2xl border-0 py-3.5 cursor-pointer text-[14px] font-bold active:scale-[0.97] transition-all ${
+                      allDone
+                        ? 'bg-gradient-to-br from-status-success to-status-success-dark text-white shadow-[0_4px_16px_rgba(34,197,94,0.3)]'
+                        : 'bg-gradient-to-br from-vybe-yellow to-vybe-yellow-dark text-ink shadow-glow-yellow'
+                    }`}
+                  >
+                    {allDone ? (
+                      <>✅ Everyone&apos;s done — Release Results</>
+                    ) : (
+                      <>⏳ Release Results ({releaseProgress.done}/{releaseProgress.total} finished)</>
+                    )}
+                  </button>
+                );
+              })()
             )}
 
             {(isActive || isExpired) && quizState.resultsReleased && (
@@ -609,6 +676,15 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         onConfirm={confirmTerminate}
         onCancel={() => setShowTerminateDialog(false)}
         confirmText="Terminate"
+      />
+      <ConfirmDialog
+        isOpen={showReleaseDialog}
+        title="Release results early?"
+        message={`Only ${releaseProgress.done} of ${releaseProgress.total} participants have finished answering. Releasing now means incomplete data — their matches may be inaccurate. Are you sure?`}
+        onConfirm={confirmReleaseResults}
+        onCancel={() => setShowReleaseDialog(false)}
+        confirmText="Release anyway"
+        cancelText="Wait longer"
       />
     </div>
   );
