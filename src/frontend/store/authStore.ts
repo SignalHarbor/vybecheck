@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { UnlockableFeature, LedgerEntry } from '../../shared/types';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../utils/pkce';
+import { analytics } from '../utils/analytics';
 
 const AUTH_STORAGE_KEY = 'vybecheck_auth';
 const PKCE_STORAGE_KEY = 'vybecheck_pkce';
@@ -82,6 +83,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   signInWithTwitter: async () => {
     set({ isSigningIn: true });
+    analytics.capture('sign_in_initiated');
 
     try {
       const clientId = import.meta.env.VITE_TWITTER_CLIENT_ID;
@@ -132,11 +134,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       window.location.href = authUrl;
     } catch (err) {
       console.error('[PKCE] Failed to initiate Twitter OAuth:', err);
+      analytics.capture('sign_in_failed', { error: String(err) });
       set({ isSigningIn: false });
     }
   },
 
   signOut: () => {
+    analytics.capture('signed_out', { twitter_username: get().twitterUsername });
+    analytics.reset();
     const cleared: StoredAuthState = {
       isSignedIn: false, twitterUsername: null, twitterId: null,
       displayName: null, profileImageUrl: null, authToken: null,
@@ -172,6 +177,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       authToken: token,
       featureUnlocks: [],
     });
+    analytics.identify(twitterId, { username: `@${username}`, display_name: displayName });
+    analytics.capture('sign_in_completed', { twitter_username: `@${username}` });
   },
 
   revalidateSession: async () => {
@@ -192,6 +199,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           displayName: user.displayName,
           profileImageUrl: user.profileImageUrl,
         });
+        analytics.identify(user.twitterId, { username: `@${user.username}`, display_name: user.displayName });
       } else {
         // Token expired or invalid — clear auth
         get().signOut();

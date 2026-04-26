@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import type { VybeLedger } from '../models/VybeLedger';
 import type { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
 import logger from '../utils/logger';
+import { getAnalyticsServer } from '../utils/analytics';
 
 // Pack configuration - replace with your actual Stripe Price IDs
 export interface VybePack {
@@ -205,6 +206,20 @@ export class StripeService {
       this.processedSessions.add(session.id);
 
       logger.info({ participantId, vybesAmount }, 'Credited Vybes from purchase');
+
+      // Fire authoritative purchase event from the server — single source of truth
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: participantId,
+          event: 'purchase_completed',
+          properties: {
+            pack_id: session.metadata?.packId,
+            vybes_granted: vybesAmount,
+            stripe_session_id: session.id,
+          },
+        });
+      }
 
       return {
         success: true,

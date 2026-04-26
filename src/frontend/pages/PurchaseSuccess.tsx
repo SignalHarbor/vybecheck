@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
+import { analytics } from '../utils/analytics';
 
 interface VerifyResult {
   paid: boolean;
@@ -40,6 +41,11 @@ export function PurchaseSuccess() {
           const balanceData = await balanceResponse.json();
           setVybesBalance(balanceData.balance);
         }
+        analytics.capture('purchase_completed_client', {
+          participant_id: data.participantId,
+          vybes_credited: data.vybes,
+          already_credited: data.credited === false,
+        });
       }
     } catch (err) {
       console.error('Verify error:', err);

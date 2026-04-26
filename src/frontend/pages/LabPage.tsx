@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useFeatures } from '../utils/features';
 import { haptic } from '../utils/haptic';
 import type { GeneratedQuestion } from '../../server/services/QuestionGeneratorService';
+import { analytics } from '../utils/analytics';
 
 const QUESTION_LIMIT_UPGRADE_COST = 3;
 const DEFAULT_QUESTION_LIMIT = 3;
@@ -114,6 +115,11 @@ export function LabPage() {
     setIsEditingDraft(false);
     haptic();
     showNotification('Question added to drafts');
+    analytics.capture('question_added', {
+      session_id: sessionId,
+      is_ai_generated: false,
+      total_drafts: useDraftStore.getState().draftQuestions.length,
+    });
     // Mark newest for entrance animation (will be last in array after state update)
     setTimeout(() => {
       const drafts = useDraftStore.getState().draftQuestions;
@@ -208,6 +214,11 @@ export function LabPage() {
     questionsToPublish.forEach(draft => {
       send({ type: 'question:add', data: { prompt: draft.prompt, options: draft.options, ownerResponse: draft.ownerResponse } });
     });
+    analytics.capture('questions_published', {
+      session_id: sessionId,
+      question_count: questionsToPublish.length,
+      ai_generated_count: questionsToPublish.filter(q => q.isAIGenerated).length,
+    });
     setTimeout(() => setIsPublishing(false), 2000);
   };
 
@@ -242,6 +253,7 @@ export function LabPage() {
     }
     setIsUnlocking(true);
     send({ type: 'question:unlock-limit' });
+    analytics.capture('question_limit_upgrade_initiated', { session_id: sessionId, cost: QUESTION_LIMIT_UPGRADE_COST, balance: vybesBalance });
     setTimeout(() => setIsUnlocking(false), 3000);
   };
 
@@ -250,6 +262,7 @@ export function LabPage() {
   const handleAIGenerate = async () => {
     if (!selectedFile) { showError('Please select a test audio file'); return; }
     setIsGenerating(true);
+    analytics.capture('ai_generation_requested', { session_id: sessionId, file: selectedFile });
     try {
       const cacheKey = `${AI_CACHE_PREFIX}${selectedFile}`;
       const cached = localStorage.getItem(cacheKey);
@@ -274,6 +287,7 @@ export function LabPage() {
       for (const q of data.questions) { addDraft(q.prompt, q.options, undefined, true); }
       const source = cached ? '(cached)' : '(new)';
       showNotification(`Generated ${data.questions.length} questions ${source}`);
+      analytics.capture('ai_generation_completed', { session_id: sessionId, questions_generated: data.questions.length, from_cache: Boolean(cached) });
       setShowAISection(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';

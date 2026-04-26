@@ -7,6 +7,7 @@ import { SkeletonRow } from '../components/SkeletonCard';
 import { useFeatures } from '../utils/features';
 import { useCountUp } from '../utils/useCountUp';
 import type { LedgerEntry } from '../../shared/types';
+import { analytics } from '../utils/analytics';
 
 const REASON_LABELS: Record<string, string> = {
   INITIAL_VYBES: 'Welcome Bonus',
@@ -90,6 +91,12 @@ export function VybesPage() {
 
   const handlePurchase = async (packId: string) => {
     if (!accountId) { setPurchaseError('Please sign in to purchase Vybes'); return; }
+    const pack = VYBE_PACKS.find(p => p.id === packId);
+    analytics.capture('purchase_flow_started', {
+      pack_id: packId,
+      vybes_amount: pack?.vybes,
+      price_usd: pack?.price,
+    });
     setPurchasingPackId(packId);
     setPurchaseError(null);
     try {
