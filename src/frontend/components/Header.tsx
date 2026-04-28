@@ -1,9 +1,10 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Sparkles, Moon, Sun, Radio, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
 import logo from '../assets/logo.png';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface HeaderProps {
   title: string;
@@ -27,6 +28,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
   const { reset: resetQuizStore, sessionId, quizState } = useQuizStore();
   const { setActivePage, isDarkMode, toggleDarkMode } = useUIStore();
   const isAuthenticated = authToken !== null;
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const handleSignOut = () => {
     signOut();
@@ -109,7 +111,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
           )}
           {isAuthenticated && profileImageUrl && (
             <button
-              onClick={handleSignOut}
+              onClick={() => setShowSignOutConfirm(true)}
               className="mt-1 shrink-0 cursor-pointer border-0 bg-transparent p-0"
               title="Sign Out"
             >
@@ -124,6 +126,16 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
           {pills}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showSignOutConfirm}
+        title="Sign out?"
+        message="You'll need to sign back in to access your account and Vybes."
+        confirmText="Sign out"
+        cancelText="Stay"
+        onConfirm={() => { setShowSignOutConfirm(false); handleSignOut(); }}
+        onCancel={() => setShowSignOutConfirm(false)}
+      />
     </header>
   );
 }
