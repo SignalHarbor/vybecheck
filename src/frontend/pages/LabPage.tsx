@@ -49,19 +49,10 @@ export function LabPage() {
 
   // AI Generation state
   const [showAISection, setShowAISection] = useState(false);
-  const [testFiles, setTestFiles] = useState<string[]>([]);
-  const [selectedFile, setSelectedFile] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState('');
-
-  useEffect(() => {
-    if (showAISection && testFiles.length === 0) {
-      fetch('/api/ai/test-files')
-        .then(res => res.json())
-        .then((data: { files: string[] }) => setTestFiles(data.files))
-        .catch(() => showError('Failed to load test audio files'));
-    }
-  }, [showAISection]);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
 
   const hasActiveSession = Boolean(sessionId && quizState && quizState.status !== 'expired');
 
@@ -257,37 +248,50 @@ export function LabPage() {
     setTimeout(() => setIsUnlocking(false), 3000);
   };
 
-  const AI_CACHE_PREFIX = 'vybecheck_ai_cache_';
+  const isMp3File = (file: File): boolean => {
+    const hasMp3Extension = /\.mp3$/i.test(file.name);
+    const mp3MimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/x-mp3', 'audio/mpeg3', 'audio/x-mpeg-3'];
+    // Some browsers leave file.type empty for unknown types — fall back to extension only.
+    const hasMp3Mime = !file.type || mp3MimeTypes.includes(file.type.toLowerCase());
+    return hasMp3Extension && hasMp3Mime;
+  };
+
+  const handleAudioFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file && !isMp3File(file)) {
+      showError('Only .mp3 files are accepted');
+      e.target.value = '';
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
+  };
 
   const handleAIGenerate = async () => {
-    if (!selectedFile) { showError('Please select a test audio file'); return; }
+    if (!selectedFile) { showError('Please choose an .mp3 file'); return; }
+    if (!isMp3File(selectedFile)) { showError('Only .mp3 files are accepted'); return; }
     setIsGenerating(true);
-    analytics.capture('ai_generation_requested', { session_id: sessionId, file: selectedFile });
+    analytics.capture('ai_generation_requested', { session_id: sessionId, file: selectedFile.name, size_kb: Math.round(selectedFile.size / 1024) });
     try {
-      const cacheKey = `${AI_CACHE_PREFIX}${selectedFile}`;
-      const cached = localStorage.getItem(cacheKey);
-      let data: { questions: GeneratedQuestion[]; transcript: string };
-      if (cached) {
-        setGenerationStatus('Using cached questions...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        data = JSON.parse(cached);
-      } else {
-        setGenerationStatus('Step 1/3: Uploading audio…');
-        const res = await fetch('/api/ai/generate-from-test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: selectedFile, count: 5 }),
-        });
-        setGenerationStatus('Step 2/3: Transcribing audio…');
-        if (!res.ok) { const errData = await res.json(); throw new Error(errData.error || 'Generation failed'); }
-        setGenerationStatus('Step 3/3: Generating questions…');
-        data = await res.json();
-        localStorage.setItem(cacheKey, JSON.stringify(data));
-      }
+      const formData = new FormData();
+      formData.append('audio', selectedFile);
+      formData.append('count', '5');
+
+      setGenerationStatus('Step 1/3: Uploading audio…');
+      const res = await fetch('/api/ai/generate-questions', {
+        method: 'POST',
+        body: formData,
+      });
+      setGenerationStatus('Step 2/3: Transcribing audio…');
+      if (!res.ok) { const errData = await res.json().catch(() => ({})); throw new Error(errData.error || 'Generation failed'); }
+      setGenerationStatus('Step 3/3: Generating questions…');
+      const data: { questions: GeneratedQuestion[]; transcript: string } = await res.json();
+
       for (const q of data.questions) { addDraft(q.prompt, q.options, undefined, true); }
-      const source = cached ? '(cached)' : '(new)';
-      showNotification(`Generated ${data.questions.length} questions ${source}`);
-      analytics.capture('ai_generation_completed', { session_id: sessionId, questions_generated: data.questions.length, from_cache: Boolean(cached) });
+      showNotification(`Generated ${data.questions.length} questions`);
+      analytics.capture('ai_generation_completed', { session_id: sessionId, questions_generated: data.questions.length });
+      setSelectedFile(null);
+      if (audioFileInputRef.current) audioFileInputRef.current.value = '';
       setShowAISection(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -351,24 +355,22 @@ export function LabPage() {
             {showAISection && (
               <div className="mb-3 rounded-2xl border-[1.5px] border-vybe-blue/20 bg-white p-4 shadow-[0_4px_16px_rgba(83,157,192,0.07)]">
                 <p className="mb-3 text-[12px] leading-[1.6] text-ink-muted">
-                  Select a test audio file to generate quiz questions using AI.
+                  Upload an .mp3 audio file (max 25MB) to generate quiz questions using AI.
                 </p>
-                <select
-                  value={selectedFile}
-                  onChange={(e) => setSelectedFile(e.target.value)}
+                <input
+                  ref={audioFileInputRef}
+                  type="file"
+                  accept=".mp3,audio/mpeg,audio/mp3"
+                  onChange={handleAudioFileSelect}
                   disabled={isGenerating}
-                  className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page"
-                >
-                  <option value="">Select audio file...</option>
-                  {testFiles.map(f => {
-                    const isCached = Boolean(localStorage.getItem(`${AI_CACHE_PREFIX}${f}`));
-                    return (
-                      <option key={f} value={f}>
-                        {f}{isCached ? ' ✓ cached' : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                  className="w-full mb-3 text-[12px] py-2.5 px-3 rounded-xl border border-border-light bg-surface-page file:mr-3 file:rounded-lg file:border-0 file:bg-tint-blue file:px-3 file:py-1.5 file:text-[12px] file:font-bold file:text-vybe-blue file:cursor-pointer"
+                />
+                {selectedFile && (
+                  <p className="mb-3 text-[11px] text-ink-muted">
+                    Selected: <span className="font-semibold text-ink">{selectedFile.name}</span>{' '}
+                    <span className="text-ink-muted">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                  </p>
+                )}
                 {generationStatus && (
                   <div className="mb-3">
                     <p className="text-[11px] text-vybe-blue animate-pulse font-bold mb-1.5">{generationStatus}</p>
