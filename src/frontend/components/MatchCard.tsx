@@ -67,13 +67,21 @@ export function MatchCard({ match, rank }: MatchCardProps) {
         }
       </div>
 
-      {/* Initials avatar */}
-      <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-extrabold text-white"
-        style={{ background: `hsl(${hue},55%,52%)` }}
-      >
-        {initials}
-      </div>
+      {/* Avatar — Twitter profile picture when available, initials fallback */}
+      {match.profileImageUrl ? (
+        <img
+          src={match.profileImageUrl}
+          alt={name}
+          className="h-9 w-9 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-extrabold text-white"
+          style={{ background: `hsl(${hue},55%,52%)` }}
+        >
+          {initials}
+        </div>
+      )}
 
       {/* Name */}
       <span className="flex-1 text-[13px] font-bold text-ink truncate">{name}</span>

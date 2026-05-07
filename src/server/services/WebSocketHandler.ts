@@ -31,6 +31,9 @@ const INITIAL_VYBES = 10;
 export class WebSocketHandler {
   private sessions: Map<string, QuizSession> = new Map();
   private connections: Map<WebSocket, { sessionId: string; participantId: string }> = new Map();
+  // Pending disconnect timers — keyed by participantId. Cancelled on reconnect so
+  // brief network blips and Stripe redirects don't flash the participant as offline.
+  private disconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private matchingService: MatchingService = new MatchingService();
   
   // Billing dependencies
@@ -201,7 +204,7 @@ export class WebSocketHandler {
     }
   }
 
-  private handleSessionCreate(ws: WebSocket, data: { username?: string }) {
+  private handleSessionCreate(ws: WebSocket, data: { username?: string; profileImageUrl?: string | null }) {
     // Prevent creating more than one session per connection
     const existing = this.connections.get(ws);
     if (existing) {
@@ -222,7 +225,8 @@ export class WebSocketHandler {
       isOwner: true,
       joinedAt: new Date(),
       lastActiveAt: new Date(),
-      isActive: true
+      isActive: true,
+      profileImageUrl: data.profileImageUrl ?? null,
     };
 
     session.addParticipant(owner);
@@ -262,7 +266,7 @@ export class WebSocketHandler {
     this.sendQuizState(ws, session, participantId);
   }
 
-  private handleSessionJoin(ws: WebSocket, data: { sessionId: string; username?: string }) {
+  private handleSessionJoin(ws: WebSocket, data: { sessionId: string; username?: string; profileImageUrl?: string | null }) {
     const session = this.sessions.get(data.sessionId);
 
     if (!session) {
@@ -278,7 +282,8 @@ export class WebSocketHandler {
       isOwner: false,
       joinedAt: new Date(),
       lastActiveAt: new Date(),
-      isActive: true
+      isActive: true,
+      profileImageUrl: data.profileImageUrl ?? null,
     };
 
     session.addParticipant(participant);
@@ -325,6 +330,15 @@ export class WebSocketHandler {
     if (!participant) {
       this.sendError(ws, `Participant ${data.participantId} not found in session`);
       return;
+    }
+
+    // Cancel any pending disconnect timer for this participant so a brief network
+    // blip doesn't result in a spurious participant:left broadcast.
+    const pendingTimer = this.disconnectTimers.get(participant.id);
+    if (pendingTimer !== undefined) {
+      clearTimeout(pendingTimer);
+      this.disconnectTimers.delete(participant.id);
+      logger.info({ participantId: participant.id }, 'Disconnect timer cancelled on reconnect');
     }
 
     // Reattach WebSocket connection
@@ -765,7 +779,8 @@ export class WebSocketHandler {
     const matchResults: MatchResult[] = allMatches.map(m => ({
       participantId: m.participantId,
       username: session.participants.get(m.participantId)?.username || null,
-      matchPercentage: m.matchPercentage
+      matchPercentage: m.matchPercentage,
+      profileImageUrl: session.participants.get(m.participantId)?.profileImageUrl || null,
     }));
 
     // Slice results based on tier
@@ -843,24 +858,38 @@ export class WebSocketHandler {
   private handleDisconnect(ws: WebSocket) {
     const connectionInfo = this.connections.get(ws);
     if (connectionInfo) {
-      const session = this.sessions.get(connectionInfo.sessionId);
-      if (session) {
-        const participant = session.participants.get(connectionInfo.participantId);
-        if (participant) {
-          participant.isActive = false;
+      const { sessionId, participantId } = connectionInfo;
+      const session = this.sessions.get(sessionId);
 
-          // Persist disconnect to DB
-          if (this.sessionRepo) {
-            this.sessionRepo.updateParticipantActive(connectionInfo.participantId, false);
-          }
-
-          this.broadcastToSession(session, {
-            type: 'participant:left',
-            data: { participantId: connectionInfo.participantId }
-          });
-        }
-      }
+      // Remove the connection mapping immediately so the socket cannot receive
+      // further messages, but defer the "mark offline + broadcast" step by 8 s
+      // to absorb brief network blips, phone screen locks, and Stripe redirects.
       this.connections.delete(ws);
+
+      if (session) {
+        const GRACE_MS = 20_000;
+        const timer = setTimeout(() => {
+          this.disconnectTimers.delete(participantId);
+          const participant = session.participants.get(participantId);
+          if (participant) {
+            participant.isActive = false;
+
+            // Persist disconnect to DB
+            if (this.sessionRepo) {
+              this.sessionRepo.updateParticipantActive(participantId, false);
+            }
+
+            this.broadcastToSession(session, {
+              type: 'participant:left',
+              data: { participantId },
+            });
+          }
+          logger.info({ participantId, sessionId }, 'Participant marked offline after grace period');
+        }, GRACE_MS);
+
+        this.disconnectTimers.set(participantId, timer);
+        logger.info({ participantId, sessionId }, `Disconnect detected — ${GRACE_MS}ms grace period started`);
+      }
     }
     logger.info({ participantId: connectionInfo?.participantId }, 'Client disconnected');
   }
@@ -900,7 +929,8 @@ export class WebSocketHandler {
       id: participant.id,
       username: participant.username,
       isOwner: participant.isOwner,
-      isActive: participant.isActive
+      isActive: participant.isActive,
+      profileImageUrl: participant.profileImageUrl,
     };
   }
 

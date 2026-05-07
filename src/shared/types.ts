@@ -10,8 +10,8 @@ export type MatchTier = 'PREVIEW' | 'TOP3' | 'ALL';
 
 // Client → Server Messages
 export type ClientMessage =
-  | { type: 'session:create'; data: { username?: string } }
-  | { type: 'session:join'; data: { sessionId: string; username?: string } }
+  | { type: 'session:create'; data: { username?: string; profileImageUrl?: string | null } }
+  | { type: 'session:join'; data: { sessionId: string; username?: string; profileImageUrl?: string | null } }
   | { type: 'session:reconnect'; data: { sessionId: string; participantId: string } }
   | { type: 'session:leave' }
   | { type: 'session:start' }
@@ -69,12 +69,14 @@ export interface ParticipantInfo {
   username: string | null;
   isOwner: boolean;
   isActive: boolean;
+  profileImageUrl: string | null;
 }
 
 export interface MatchResult {
   participantId: string;
   username: string | null;
   matchPercentage: number;
+  profileImageUrl: string | null;
 }
 
 // Vybes Monetization Types

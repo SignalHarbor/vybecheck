@@ -22,7 +22,7 @@ export function LabPage() {
   const { send } = useWebSocketStore();
   const { showNotification, showError, setActivePage } = useUIStore();
   const { sessionId, quizState, questionLimitState, isOwner } = useQuizStore();
-  const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit, twitterUsername } = useAuthStore();
+  const { getQuestionLimit, vybesBalance, hasUpgradedQuestionLimit, twitterUsername, profileImageUrl } = useAuthStore();
   const [isUnlocking, setIsUnlocking] = useState(false);
 
   const [draggedDraftIndex, setDraggedDraftIndex] = useState<number | null>(null);
@@ -220,7 +220,7 @@ export function LabPage() {
     if (!hasActiveSession) {
       setPendingNeedsUpgrade(true);
       setPendingPublish(true);
-      send({ type: 'session:create', data: { username: twitterUsername || undefined } });
+      send({ type: 'session:create', data: { username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
     } else {
       send({ type: 'question:unlock-limit' });
       clearDrafts();
@@ -234,7 +234,7 @@ export function LabPage() {
   const confirmCreateSession = () => {
     setShowCreateSessionDialog(false);
     setPendingPublish(true);
-    send({ type: 'session:create', data: { username: twitterUsername || undefined } });
+    send({ type: 'session:create', data: { username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
   };
 
   const handleUnlockQuestionLimit = () => {
