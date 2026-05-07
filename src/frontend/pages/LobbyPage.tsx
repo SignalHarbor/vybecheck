@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2, X } from 'lucide-react';
+import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2, X, UserX } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -34,6 +34,8 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
   const [showReleaseDialog, setShowReleaseDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<string>>(new Set());
+  const [showKickDialog, setShowKickDialog] = useState(false);
 
   const copySessionId = () => {
     if (!sessionId) return;
@@ -372,6 +374,28 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
     setShowTerminateDialog(false);
   };
 
+  const toggleParticipantSelection = (id: string) => {
+    setSelectedParticipantIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedNames = (() => {
+    if (!quizState) return [];
+    const all = quizState.participantProgress
+      ? quizState.participantProgress.map(p => ({ id: p.participantId, name: p.username || p.participantId.slice(0, 8) }))
+      : quizState.participants.map(p => ({ id: p.id, name: p.username || p.id.slice(0, 8) }));
+    return all.filter(p => selectedParticipantIds.has(p.id)).map(p => p.name);
+  })();
+
+  const handleKickConfirm = () => {
+    send({ type: 'session:kick', data: { participantIds: [...selectedParticipantIds] } });
+    setSelectedParticipantIds(new Set());
+    setShowKickDialog(false);
+  };
+
   // Show terminate when: session in lobby, or owner is the only participant
   const canTerminate = isOwner && !isExpired && (
     isLobby || quizState.participantCount <= 1
@@ -457,7 +481,23 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.participantId.charCodeAt(0) * 37 + p.participantId.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.participantId} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
+                  <div
+                    key={p.participantId}
+                    onClick={p.participantId !== participantId ? () => toggleParticipantSelection(p.participantId) : undefined}
+                    className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
+                      p.participantId !== participantId ? 'cursor-pointer' : ''
+                    } ${selectedParticipantIds.has(p.participantId) ? 'bg-tint-blue' : ''}`}
+                  >
+                    {/* Selection indicator (all rows except own) */}
+                    {p.participantId !== participantId && (
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                        selectedParticipantIds.has(p.participantId) ? 'border-vybe-blue bg-vybe-blue' : 'border-border-light bg-white'
+                      }`}>
+                        {selectedParticipantIds.has(p.participantId) && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        )}
+                      </div>
+                    )}
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
@@ -494,7 +534,23 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 const initials = name.slice(0, 2).toUpperCase();
                 const hue = (p.id.charCodeAt(0) * 37 + p.id.charCodeAt(1) * 17) % 360;
                 return (
-                  <div key={p.id} className="flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in">
+                  <div
+                    key={p.id}
+                    onClick={p.id !== participantId ? () => toggleParticipantSelection(p.id) : undefined}
+                    className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
+                      p.id !== participantId ? 'cursor-pointer' : ''
+                    } ${selectedParticipantIds.has(p.id) ? 'bg-tint-blue' : ''}`}
+                  >
+                    {/* Selection indicator (all rows except own) */}
+                    {p.id !== participantId && (
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                        selectedParticipantIds.has(p.id) ? 'border-vybe-blue bg-vybe-blue' : 'border-border-light bg-white'
+                      }`}>
+                        {selectedParticipantIds.has(p.id) && (
+                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        )}
+                      </div>
+                    )}
                     {/* Avatar */}
                     <div
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
@@ -549,6 +605,27 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Kick bar — visible to owner when participants are selected */}
+        {isOwner && selectedParticipantIds.size > 0 && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-vybe-red/20 bg-tint-red px-4 py-3">
+            <span className="flex-1 text-[13px] font-bold text-vybe-red">
+              {selectedParticipantIds.size} selected
+            </span>
+            <button
+              onClick={() => setSelectedParticipantIds(new Set())}
+              className="text-[12px] font-bold text-ink-muted cursor-pointer px-2 py-1 rounded-lg hover:bg-white/50"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => setShowKickDialog(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-vybe-red px-3 py-1.5 text-[12px] font-bold text-white cursor-pointer active:scale-[0.97] transition-all"
+            >
+              <UserX size={12} /> Kick {selectedParticipantIds.size}
+            </button>
           </div>
         )}
 
@@ -685,6 +762,15 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         onCancel={() => setShowReleaseDialog(false)}
         confirmText="Release anyway"
         cancelText="Wait longer"
+      />
+      <ConfirmDialog
+        isOpen={showKickDialog}
+        title={`Remove ${selectedParticipantIds.size} participant${selectedParticipantIds.size > 1 ? 's' : ''}?`}
+        message={`The following ${selectedParticipantIds.size > 1 ? 'participants' : 'participant'} will be removed from the session:\n\n${selectedNames.join(', ')}\n\nThey will be returned to the start screen and cannot rejoin.`}
+        onConfirm={handleKickConfirm}
+        onCancel={() => { setShowKickDialog(false); setSelectedParticipantIds(new Set()); }}
+        confirmText={`Remove ${selectedParticipantIds.size > 1 ? 'them' : 'them'}`}
+        cancelText="Cancel"
       />
     </div>
   );
