@@ -274,6 +274,11 @@ export class WebSocketHandler {
       return;
     }
 
+    if (session.status === 'expired') {
+      this.sendError(ws, 'This session has already ended. Results have been released.');
+      return;
+    }
+
     const participantId = generateParticipantId();
     const participant: Participant = {
       id: participantId,
