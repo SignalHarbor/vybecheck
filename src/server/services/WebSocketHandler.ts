@@ -178,6 +178,9 @@ export class WebSocketHandler {
       case 'session:terminate':
         this.handleSessionTerminate(ws);
         break;
+      case 'session:kick':
+        this.handleSessionKick(ws, message.data);
+        break;
       case 'question:add':
         this.handleQuestionAdd(ws, message.data);
         break;
@@ -724,6 +727,68 @@ export class WebSocketHandler {
     } catch (error: unknown) {
       logger.error({ err: error, sessionId: session.sessionId }, 'Failed to terminate session');
       this.sendError(ws, 'Failed to terminate session');
+    }
+  }
+
+  private handleSessionKick(ws: WebSocket, data: { participantIds: string[] }) {
+    const connectionInfo = this.connections.get(ws);
+    if (!connectionInfo) {
+      this.sendError(ws, 'Not in a session');
+      return;
+    }
+
+    const session = this.sessions.get(connectionInfo.sessionId);
+    if (!session) {
+      this.sendError(ws, 'Session not found');
+      return;
+    }
+
+    // Only the owner can kick participants
+    const requestingParticipant = session.participants.get(connectionInfo.participantId);
+    if (!requestingParticipant?.isOwner) {
+      this.sendError(ws, 'Only the session owner can kick participants');
+      return;
+    }
+
+    for (const participantId of data.participantIds) {
+      // Silently skip attempts to kick yourself or unknown ids
+      if (participantId === connectionInfo.participantId) continue;
+
+      const participant = session.participants.get(participantId);
+      if (!participant) continue;
+
+      // Cancel any pending disconnect grace timer for this participant
+      const pendingTimer = this.disconnectTimers.get(participantId);
+      if (pendingTimer !== undefined) {
+        clearTimeout(pendingTimer);
+        this.disconnectTimers.delete(participantId);
+      }
+
+      // Notify the kicked participant before closing their socket
+      if (participant.connection.readyState === participant.connection.OPEN) {
+        this.send(participant.connection, {
+          type: 'participant:kicked',
+          data: { participantId },
+        });
+        participant.connection.close(1008, 'Removed by session owner');
+      }
+
+      // Remove from session model
+      session.removeParticipant(participantId);
+      this.connections.delete(participant.connection);
+
+      // Persist removal to DB
+      if (this.sessionRepo) {
+        this.sessionRepo.updateParticipantActive(participantId, false);
+      }
+
+      // Broadcast to remaining participants
+      this.broadcastToSession(session, {
+        type: 'participant:kicked',
+        data: { participantId },
+      });
+
+      logger.info({ participantId, sessionId: session.sessionId }, 'Participant kicked by owner');
     }
   }
 

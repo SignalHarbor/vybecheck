@@ -17,6 +17,7 @@ export type ClientMessage =
   | { type: 'session:start' }
   | { type: 'session:release-results' }
   | { type: 'session:terminate' }
+  | { type: 'session:kick'; data: { participantIds: string[] } }
   | { type: 'question:add'; data: { prompt: string; options: [string, string]; timer?: number; ownerResponse?: string } }
   | { type: 'question:unlock-limit' }
   | { type: 'response:submit'; data: { questionId: string; optionChosen: string } }
@@ -39,6 +40,7 @@ export type ServerMessage =
   | { type: 'question:limit-unlocked'; data: { newLimit: number; vybesBalance: number } }
   | { type: 'participant:joined'; data: ParticipantInfo }
   | { type: 'participant:left'; data: { participantId: string } }
+  | { type: 'participant:kicked'; data: { participantId: string } }
   | { type: 'response:recorded'; data: { participantId: string; questionId: string } }
   | { type: 'matches:result'; data: { tier: MatchTier; matches: MatchResult[]; cost: number; vybesBalance: number } }
   | { type: 'credits:balance'; data: { balance: number } }

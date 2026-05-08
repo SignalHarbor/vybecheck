@@ -313,6 +313,29 @@ function App() {
         });
         break;
 
+      case 'participant:kicked': {
+        const kickedId = message.data.participantId;
+        const myParticipantId = useQuizStore.getState().participantId;
+        if (kickedId === myParticipantId) {
+          // We were kicked — clear session state and return to start
+          resetQuizStore();
+          setActivePage('start');
+          showError('You were removed from the session by the host.');
+        } else {
+          // Someone else was kicked — remove them from the participant list
+          updateQuizState((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.filter(p => p.id !== kickedId),
+              participantCount: prev.participantCount - 1,
+              activeParticipantCount: prev.activeParticipantCount - 1,
+            };
+          });
+        }
+        break;
+      }
+
       case 'response:recorded':
         // Response recorded, the quiz state will be updated via quiz:state message
         break;
