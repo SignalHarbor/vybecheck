@@ -7,7 +7,7 @@ import { parseJoinInput } from '../utils/parseJoinInput';
 import logo from '../assets/logo.png';
 
 export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
-  const { isSigningIn, signInWithTwitter, twitterUsername } = useAuthStore();
+  const { isSigningIn, signInWithTwitter, twitterUsername, profileImageUrl } = useAuthStore();
   const { send } = useWebSocketStore();
   const { error, notification, showError } = useUIStore();
 
@@ -37,7 +37,7 @@ export function StartPage({ prefilledSessionId }: { prefilledSessionId?: string 
       showError(parsed.error || 'Please enter a valid session ID');
       return;
     }
-    send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined } });
+    send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
   };
 
   // If the user pastes a full join URL, auto-normalize the field to just the id.

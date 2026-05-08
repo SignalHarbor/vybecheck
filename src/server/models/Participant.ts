@@ -8,4 +8,5 @@ export interface Participant {
   joinedAt: Date;
   lastActiveAt: Date;
   isActive: boolean;             // currently connected
+  profileImageUrl: string | null; // Twitter profile picture, null for guests
 }

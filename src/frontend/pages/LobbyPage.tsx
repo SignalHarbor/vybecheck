@@ -21,7 +21,7 @@ const isValidCode = (v: string): boolean => v.trim().length === 6;
 export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string | null }) {
   const { sessionId, participantId, quizState, isOwner, reset: resetQuizStore } = useQuizStore();
   const { send } = useWebSocketStore();
-  const { twitterUsername, authToken, signInWithTwitter } = useAuthStore();
+  const { twitterUsername, authToken, signInWithTwitter, profileImageUrl } = useAuthStore();
   const isAuthenticated = authToken !== null;
   const { showError, showNotification, setActivePage } = useUIStore();
   const { draftQuestions, clearDrafts } = useDraftStore();
@@ -92,7 +92,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
   if (!sessionId || !quizState) {
     const handleCreateSession = () => {
       setIsCreating(true);
-      send({ type: 'session:create', data: { username: twitterUsername || undefined } });
+      send({ type: 'session:create', data: { username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
 
       // 2 minute safety timeout — reset if server never responds (disabled in dev)
       if (!import.meta.env.DEV) {
@@ -132,7 +132,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
         showError(parsed.error || 'Please enter a valid session ID');
         return;
       }
-      send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined } });
+      send({ type: 'session:join', data: { sessionId: parsed.sessionId, username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
     };
 
     // If the user pastes a full join URL, auto-normalize the field to the id.
@@ -199,7 +199,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 if (isValidCode(pasted)) {
                   haptic();
                   setTimeout(() => {
-                    send({ type: 'session:join', data: { sessionId: pasted, username: twitterUsername || undefined } });
+                    send({ type: 'session:join', data: { sessionId: pasted, username: twitterUsername || undefined, profileImageUrl: profileImageUrl || null } });
                     setJoinSubmitted(true);
                   }, 120);
                 }
@@ -441,6 +441,29 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
             </div>
           </div>
         </div>
+
+        {/* Session Closed Banner — persistent, prominent, cannot be dismissed */}
+        {isExpired && (
+          <div className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/20">
+                <span className="text-[18px]">🔒</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-extrabold text-amber-700">Session Closed</p>
+                <p className="mt-0.5 text-[12px] text-amber-700/75 leading-relaxed">
+                  Results have been released. Check your match scores now.
+                </p>
+                <button
+                  onClick={() => setActivePage('quiz')}
+                  className="mt-2.5 flex items-center gap-1.5 rounded-xl bg-amber-400 px-3 py-1.5 text-[12px] font-bold text-amber-900 cursor-pointer transition-all active:scale-[0.97] hover:bg-amber-300"
+                >
+                  View your matches →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Participants Section */}
         <div className="mb-3 flex items-center gap-2">
