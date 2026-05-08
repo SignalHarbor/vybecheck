@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import type { ServerMessage } from '../shared/types';
 import { useWebSocketStore } from './store/websocketStore';
 import { useAuthStore } from './store/authStore';
@@ -83,6 +83,8 @@ function App() {
     }
   }, []);
 
+
+
   // Signed-in users shouldn't be on 'start' — default to Lobby
   useEffect(() => {
     if (isSignedIn && activePage === 'start') {
@@ -97,10 +99,11 @@ function App() {
   useEffect(() => {
     if (isTransientPage) return;
 
-    // In production, WS is on the same host. In dev, connect directly to the backend.
+    // In production, WS is on the same host. In dev, route through Vite's /ws proxy
+    // (direct ws://localhost:3000 doesn't work in all browser contexts)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = import.meta.env.DEV
-      ? 'ws://localhost:3000'
+      ? `${wsProtocol}//${window.location.host}/ws`
       : `${wsProtocol}//${window.location.host}`;
     const websocket = new WebSocket(wsUrl);
     let hasConnected = false;
@@ -125,7 +128,9 @@ function App() {
 
     websocket.addEventListener('message', (event) => {
       const message: ServerMessage = JSON.parse(event.data);
-      handleServerMessage(message);
+      // Always use the ref so the handler reads the latest store values,
+      // avoiding the stale-closure bug from the empty-dep useEffect.
+      handleServerMessageRef.current(message);
     });
 
     websocket.addEventListener('close', () => {
@@ -150,7 +155,9 @@ function App() {
     };
   }, []);
 
-  const handleServerMessage = (message: ServerMessage) => {
+  // Kept as useCallback so the function identity is stable across renders;
+  // the ref below ensures the WebSocket listener always calls the latest version.
+  const handleServerMessage = useCallback((message: ServerMessage) => {
     console.log('Received:', message);
 
     switch (message.type) {
@@ -179,17 +186,32 @@ function App() {
         analytics.group('session', message.data.sessionId, { session_id: message.data.sessionId, is_owner: message.data.isOwner });
         break;
 
-      case 'session:reconnected':
+      case 'session:reconnected': {
         console.log('[Reconnect] Successfully rejoined session:', message.data.sessionId);
         setSessionId(message.data.sessionId);
         setParticipantId(message.data.participantId);
         setIsOwner(message.data.isOwner);
         setVybesBalance(message.data.vybesBalance);
+        // Route to the right page based on current quiz state.
+        // quiz:state arrives right after this message, so we read from the store
+        // snapshot and let the subsequent state update correct if needed.
+        const currentQuizState = useQuizStore.getState().quizState;
+        if (currentQuizState) {
+          if (currentQuizState.status === 'expired') {
+            setActivePage('quiz'); // show results / match screen
+          } else if (message.data.isOwner) {
+            setActivePage('lobby');
+          } else {
+            setActivePage('quiz');
+          }
+        }
         break;
+      }
 
       case 'session:started':
         updateQuizState((prev) => prev ? { ...prev, status: 'active' } : null);
-        if (isOwner) {
+        // Read isOwner from the store directly to avoid stale closure.
+        if (useQuizStore.getState().isOwner) {
           showNotification('Session started!');
           setActivePage('lobby'); // Owner monitors progress from lobby
         } else {
@@ -208,6 +230,10 @@ function App() {
         updateQuizState((prev) => prev ? { ...prev, resultsReleased: true, status: 'expired' } : null);
         showNotification('Results are now available!');
         analytics.capture('session_results_released', { session_id: useQuizStore.getState().sessionId });
+        // Automatically fetch PREVIEW matches so participants land on results
+        // with data ready — no manual action required.
+        useWebSocketStore.getState().send({ type: 'matches:get', data: { tier: 'PREVIEW' } });
+        setActivePage('quiz');
         break;
 
       case 'quiz:state':
@@ -244,18 +270,35 @@ function App() {
         showNotification(`Question limit upgraded to ${message.data.newLimit}!`);
         break;
 
-      case 'participant:joined':
+      case 'participant:joined': {
+        const joiningParticipant = message.data;
         updateQuizState((prev) => {
           if (!prev) return null;
+          const exists = prev.participants.some(p => p.id === joiningParticipant.id);
+          // Upsert: update the existing entry if the participant is reconnecting,
+          // otherwise append. This prevents ghost duplicates in the list.
+          const updatedParticipants = exists
+            ? prev.participants.map(p => p.id === joiningParticipant.id ? joiningParticipant : p)
+            : [...prev.participants, joiningParticipant];
           return {
             ...prev,
-            participants: [...prev.participants, message.data],
-            participantCount: prev.participantCount + 1,
-            activeParticipantCount: prev.activeParticipantCount + 1
+            participants: updatedParticipants,
+            participantCount: exists ? prev.participantCount : prev.participantCount + 1,
+            activeParticipantCount: exists
+              ? prev.activeParticipantCount + (joiningParticipant.isActive ? 1 : 0)
+              : prev.activeParticipantCount + 1,
           };
         });
-        showNotification(`${message.data.username || 'New participant'} joined!`);
+        // Only announce the join notification for genuinely new participants,
+        // not for reconnects (which already existed in the list).
+        const alreadyKnown = useQuizStore.getState().quizState?.participants.some(
+          p => p.id === joiningParticipant.id
+        );
+        if (!alreadyKnown) {
+          showNotification(`${joiningParticipant.username || 'New participant'} joined!`);
+        }
         break;
+      }
 
       case 'participant:left':
         updateQuizState((prev) => {
@@ -316,7 +359,16 @@ function App() {
         showError(message.message);
         break;
     }
-  };
+  }, [setSessionId, setParticipantId, setIsOwner, setVybesBalance, setSignedIn, setActivePage,
+      updateQuizState, setQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState,
+      addFeatureUnlock, setTransactionHistory, showNotification, showError, resetQuizStore]);
+
+  // Keep a ref to the latest handler so the WebSocket listener (captured in the
+  // empty-dep useEffect) always calls the current version without stale closures.
+  const handleServerMessageRef = useRef(handleServerMessage);
+  useEffect(() => {
+    handleServerMessageRef.current = handleServerMessage;
+  }, [handleServerMessage]);
 
   // Check for path-based routes
   const pathname = window.location.pathname;
