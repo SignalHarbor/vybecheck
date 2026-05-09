@@ -43,7 +43,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
       <div className="pt-14 pb-2 px-6" />
 
       <div className="flex items-start justify-between px-5 pt-1">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-end gap-2.5">
           <img src={logo} alt="VybeCheck" className="h-7.5 w-7.5 shrink-0 object-contain" />
           <div>
             {subtitle && (
@@ -54,14 +54,12 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Session status chip — shown when there's an active session */}
-          {sessionId && quizState && (
+          {/* Session status chip — shown when there's an active session, hidden when expired */}
+          {sessionId && quizState && quizState.status !== 'expired' && (
             <div className={`mt-1 flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
               quizState.status === 'active'
                 ? 'border-vybe-red/30 bg-vybe-red/15'
-                : quizState.status === 'expired'
-                  ? 'border-ink-muted/25 bg-ink-muted/15'
-                  : 'border-vybe-yellow/30 bg-vybe-yellow/15'
+                : 'border-vybe-yellow/30 bg-vybe-yellow/15'
             }`}>
               {quizState.status === 'active' && (
                 <>
