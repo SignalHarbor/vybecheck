@@ -937,7 +937,7 @@ export class WebSocketHandler {
       this.connections.delete(ws);
 
       if (session) {
-        const GRACE_MS = 20_000;
+        const GRACE_MS = 90_000;
         const timer = setTimeout(() => {
           this.disconnectTimers.delete(participantId);
           const participant = session.participants.get(participantId);

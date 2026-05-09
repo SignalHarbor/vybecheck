@@ -96,64 +96,80 @@ function App() {
   const isTransientPage = ['/auth/callback', '/purchase/success', '/purchase/cancel', '/purchase/error']
     .includes(window.location.pathname);
 
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelayRef = useRef(1000); // starts at 1 s, doubles up to 30 s
+  const destroyedRef = useRef(false);     // set on unmount to stop further retries
+  const [hasEverConnected, setHasEverConnected] = useState(false);
+
   useEffect(() => {
     if (isTransientPage) return;
 
-    // In production, WS is on the same host. In dev, route through Vite's /ws proxy
-    // (direct ws://localhost:3000 doesn't work in all browser contexts)
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = import.meta.env.DEV
       ? `${wsProtocol}//${window.location.host}/ws`
       : `${wsProtocol}//${window.location.host}`;
-    const websocket = new WebSocket(wsUrl);
-    let hasConnected = false;
 
-    websocket.addEventListener('open', () => {
-      console.log('Connected to server');
-      hasConnected = true;
-      setConnected(true);
-      setWebSocket(websocket);
+    const connect = () => {
+      if (destroyedRef.current) return;
 
-      // Auto-reconnect to existing session if we have stored state
-      const storedSessionId = useQuizStore.getState().sessionId;
-      const storedParticipantId = useQuizStore.getState().participantId;
-      if (storedSessionId && storedParticipantId) {
-        console.log('[Reconnect] Attempting to rejoin session:', storedSessionId);
-        websocket.send(JSON.stringify({
-          type: 'session:reconnect',
-          data: { sessionId: storedSessionId, participantId: storedParticipantId },
-        }));
-      }
-    });
+      // In production, WS is on the same host. In dev, route through Vite's /ws proxy
+      // (direct ws://localhost:3000 doesn't work in all browser contexts)
+      const websocket = new WebSocket(wsUrl);
+      wsRef.current = websocket;
 
-    websocket.addEventListener('message', (event) => {
-      const message: ServerMessage = JSON.parse(event.data);
-      // Always use the ref so the handler reads the latest store values,
-      // avoiding the stale-closure bug from the empty-dep useEffect.
-      handleServerMessageRef.current(message);
-    });
+      websocket.addEventListener('open', () => {
+        if (destroyedRef.current) { websocket.close(); return; }
+        console.log('[WS] Connected');
+        reconnectDelayRef.current = 1000; // reset backoff on successful connection
+        setConnected(true);
+        setHasEverConnected(true);
+        setWebSocket(websocket);
 
-    websocket.addEventListener('close', () => {
-      console.log('Disconnected from server');
-      setConnected(false);
-      // Only show error if we were previously connected
-      if (hasConnected) {
-        showError('Connection lost', 3000);
-      }
-    });
+        // Rejoin existing session if we have stored state
+        const storedSessionId = useQuizStore.getState().sessionId;
+        const storedParticipantId = useQuizStore.getState().participantId;
+        if (storedSessionId && storedParticipantId) {
+          console.log('[WS] Rejoining session:', storedSessionId);
+          websocket.send(JSON.stringify({
+            type: 'session:reconnect',
+            data: { sessionId: storedSessionId, participantId: storedParticipantId },
+          }));
+        }
+      });
 
-    websocket.addEventListener('error', (error) => {
-      console.error('WebSocket error:', error);
-      // Only show error if we were previously connected (not on initial load)
-      if (hasConnected) {
-        showError('Connection error', 3000);
-      }
-    });
+      websocket.addEventListener('message', (event) => {
+        const message: ServerMessage = JSON.parse(event.data);
+        // Always use the ref so the handler reads the latest store values,
+        // avoiding the stale-closure bug from the empty-dep useEffect.
+        handleServerMessageRef.current(message);
+      });
+
+      websocket.addEventListener('close', () => {
+        if (destroyedRef.current) return;
+        console.log('[WS] Disconnected — retrying in', reconnectDelayRef.current, 'ms');
+        setConnected(false);
+        // Schedule next attempt with exponential backoff (cap at 30 s)
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 30_000);
+          connect();
+        }, reconnectDelayRef.current);
+      });
+
+      websocket.addEventListener('error', (error) => {
+        console.error('[WS] Error:', error);
+        // close event always fires after error, so the retry is handled there
+      });
+    };
+
+    connect();
 
     return () => {
-      websocket.close();
+      destroyedRef.current = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      wsRef.current?.close();
     };
-  }, []);
+  }, [];
 
   // Kept as useCallback so the function identity is stable across renders;
   // the ref below ensures the WebSocket listener always calls the latest version.
@@ -415,7 +431,7 @@ function App() {
   const queryJoin = new URLSearchParams(window.location.search).get('join');
   const deeplinkSessionId = joinMatch ? joinMatch[1] : queryJoin;
 
-  if (!connected) {
+  if (!connected && !hasEverConnected) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
         <LoadingScreen message={connectMessage} />
