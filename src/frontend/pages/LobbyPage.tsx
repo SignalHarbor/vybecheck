@@ -437,27 +437,31 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
               <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={copySessionId}
-                disabled={copied}
-                title="Copy session ID"
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
-                  copied
-                    ? 'border-status-success/30 bg-tint-green text-status-success-dark'
-                    : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
-                }`}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-              <button
-                onClick={shareSession}
-                title="Share session"
-                className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-page px-3 py-1.5 text-[11px] font-bold text-ink-muted cursor-pointer transition-all hover:border-vybe-red/30 hover:text-vybe-red"
-              >
-                <Share2 size={12} />
-                Share
-              </button>
+              {!isExpired && (
+                <>
+                  <button
+                    onClick={copySessionId}
+                    disabled={copied}
+                    title="Copy session ID"
+                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
+                      copied
+                        ? 'border-status-success/30 bg-tint-green text-status-success-dark'
+                        : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
+                    }`}
+                  >
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={shareSession}
+                    title="Share session"
+                    className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-page px-3 py-1.5 text-[11px] font-bold text-ink-muted cursor-pointer transition-all hover:border-vybe-red/30 hover:text-vybe-red"
+                  >
+                    <Share2 size={12} />
+                    Share
+                  </button>
+                </>
+              )}
               <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
                 <DoorOpen size={10} className="text-ink-muted" />
                 <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
