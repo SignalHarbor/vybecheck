@@ -20,10 +20,13 @@ const TIER_COSTS: Record<MatchTier, number> = {
 };
 
 const TIER_LABELS: Record<MatchTier, string> = {
-  PREVIEW: 'Preview (2 matches)',
+  PREVIEW: 'Preview (top match)',
   TOP3: 'Top 3 Matches',
   ALL: 'All Matches',
 };
+
+const MIN_PARTICIPANTS = 3;
+const MIN_QUESTIONS = 3;
 
 export function QuizPage() {
   const { sessionId, quizState, matchState, setMatchesLoading, isOwner } = useQuizStore();
@@ -32,7 +35,6 @@ export function QuizPage() {
   const isAuthenticated = authToken !== null;
   const { activePage, setActivePage, showNotification } = useUIStore();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedTier, setSelectedTier] = useState<MatchTier>('PREVIEW');
   const prevQuestionCountRef = useRef(0);
 
   // Vybes spend confirmation
@@ -49,9 +51,20 @@ export function QuizPage() {
   // Answer lock-in flash
   const [lockedOption, setLockedOption] = useState<string | null>(null);
 
-  // Configurable threshold: percentage of participants that must complete before matches can be calculated
-  // 100 = all participants must complete, 50 = half must complete, etc.
-  const COMPLETION_THRESHOLD_PERCENT = 100;
+  // Reveal-anyway override: user opted in below the floor
+  const [revealAnyway, setRevealAnyway] = useState(false);
+
+  // Auto-fetch PREVIEW when results are first released (floor permitting, or user opted in)
+  const prevResultsReleasedRef = useRef(false);
+  useEffect(() => {
+    if (!quizState) return;
+    const floorMet = quizState.participantCount >= MIN_PARTICIPANTS && quizState.questions.length >= MIN_QUESTIONS;
+    const shouldFetch = floorMet || revealAnyway;
+    if (quizState.resultsReleased && !prevResultsReleasedRef.current && shouldFetch && matchState.matches.length === 0) {
+      getMatches('PREVIEW');
+    }
+    prevResultsReleasedRef.current = quizState.resultsReleased;
+  }, [quizState?.resultsReleased, revealAnyway]);
 
   // Results count-up — hoisted before early returns (hooks must be unconditional)
   const isExpired = quizState?.status === 'expired';
@@ -361,19 +374,88 @@ export function QuizPage() {
           </div>
 
           {/* Show matches if released */}
-          {quizState.resultsReleased && matchState?.matches && matchState.matches.length > 0 && (
-            <>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
-                <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">YOUR MATCHES</p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {matchState.matches.map((match, i) => (
-                  <MatchCard key={match.participantId} match={match} rank={i + 1} />
-                ))}
-              </div>
-            </>
-          )}
+          {quizState.resultsReleased && (() => {
+            const floorMet = quizState.participantCount >= MIN_PARTICIPANTS && quizState.questions.length >= MIN_QUESTIONS;
+            if (!floorMet && !revealAnyway) {
+              return (
+                <div className="mt-4 rounded-3xl border border-border-light bg-white p-5 shadow-card-muted flex flex-col items-center text-center">
+                  <div className="text-3xl mb-3">🔬</div>
+                  <h3 className="text-[15px] font-extrabold text-ink m-0 mb-1">Small Session</h3>
+                  <p className="text-[12px] text-ink-muted m-0 mb-4 leading-[1.6]">
+                    {quizState.participantCount < MIN_PARTICIPANTS
+                      ? `Match scores are most meaningful with ${MIN_PARTICIPANTS}+ people. This session had ${quizState.participantCount}.`
+                      : `Match scores are most meaningful with ${MIN_QUESTIONS}+ questions. This session had ${quizState.questions.length}.`}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setRevealAnyway(true);
+                      getMatches('PREVIEW');
+                    }}
+                    className="w-full py-3 border-none rounded-2xl text-[13px] font-bold cursor-pointer bg-gradient-red text-white shadow-glow-red active:scale-[0.97] transition-all"
+                  >
+                    Reveal my match anyway →
+                  </button>
+                </div>
+              );
+            }
+            if (!matchState?.matches || matchState.matches.length === 0) return null;
+            return (
+              <>
+                <div className="mb-3 mt-4 flex items-center gap-2">
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
+                  <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">YOUR MATCHES</p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {matchState.matches.map((match, i) => (
+                    <MatchCard key={match.participantId} match={match} rank={i + 1} />
+                  ))}
+                  {matchState.tier === 'PREVIEW' && (
+                    <>
+                      {[2, 3].map(rank => (
+                        <div key={rank} className="relative rounded-2xl border border-border-light bg-white p-3.5 overflow-hidden">
+                          <div className="blur-sm opacity-40 flex items-center gap-3 pointer-events-none select-none">
+                            <div className="shrink-0 w-6 text-center">
+                              <span className="text-[12px] font-black text-ink-muted">#{rank}</span>
+                            </div>
+                            <div className="h-9 w-9 rounded-full bg-tint-muted" />
+                            <div className="flex-1 h-3 rounded-full bg-tint-muted" />
+                            <div className="h-10 w-10 rounded-full bg-tint-muted" />
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xl">🔒</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex flex-col gap-2 pt-1">
+                        {(['TOP3', 'ALL'] as MatchTier[]).map(tier => (
+                          <button
+                            key={tier}
+                            onClick={() => handleTierButtonClick(tier)}
+                            disabled={!canAffordTier(tier)}
+                            className={`w-full py-3 border-none rounded-2xl text-[13px] font-bold cursor-pointer transition-all active:scale-[0.97] ${
+                              hasTierAccess(tier)
+                                ? 'bg-tint-blue text-vybe-blue'
+                                : canAffordTier(tier)
+                                  ? 'bg-gradient-red text-white shadow-glow-red'
+                                  : 'bg-tint-muted text-ink-muted cursor-not-allowed opacity-60'
+                            }`}
+                          >
+                            {hasTierAccess(tier)
+                              ? `View ${TIER_LABELS[tier]}`
+                              : `Unlock ${TIER_LABELS[tier]} — ${TIER_COSTS[tier]} ✨`}
+                          </button>
+                        ))}
+                        <div className="flex justify-between items-center py-2 px-3 bg-tint-muted rounded-xl text-[12px] text-ink-muted">
+                          <span>Your balance:</span>
+                          <span className="font-bold text-ink">{vybesBalance} ✨</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     );
@@ -519,101 +601,101 @@ export function QuizPage() {
           </div>
         ) : (
           /* Matches Section */
-          <div className="rounded-3xl border border-border-light bg-white p-5 shadow-card-muted flex flex-col items-center text-center">
-            <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-5">
-              <Sparkles size={24} className="text-vybe-blue" />
-            </div>
-            <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Results are in!</h2>
-            <p className="text-[13px] text-ink-muted m-0 mb-5">See who you vibe with.</p>
-
-            {(() => {
-              const participantsWithResponses = quizState.participants.filter(p => p.isActive).length;
-              const totalParticipants = quizState.participantCount;
-              const completionRate = totalParticipants > 0
-                ? Math.round((participantsWithResponses / totalParticipants) * 100) : 0;
-              const canCalculateMatches = completionRate >= COMPLETION_THRESHOLD_PERCENT;
-
-              return (
-                <>
-                  {!canCalculateMatches && (
-                    <div className="rounded-2xl border border-vybe-yellow/25 bg-tint-yellow py-3 px-4 mb-4 text-[12px] text-vybe-gold font-bold text-center w-full">
-                      ⏳ Waiting for {COMPLETION_THRESHOLD_PERCENT}% completion
-                      <div className="mt-1 text-[11px] font-medium opacity-80">
-                        {completionRate}% ({participantsWithResponses}/{totalParticipants} active)
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tier Selection */}
-                  <div className="mt-2 flex flex-col gap-2 w-full">
-                    {(['PREVIEW', 'TOP3', 'ALL'] as MatchTier[]).map((tier) => {
-                      const cost = TIER_COSTS[tier];
-                      const hasAccess = hasTierAccess(tier);
-                      const canAfford = canAffordTier(tier);
-                      const isSelected = selectedTier === tier;
-
-                      return (
-                        <button
-                          key={tier}
-                          onClick={() => setSelectedTier(tier)}
-                          disabled={!canCalculateMatches}
-                          className={`flex justify-between items-center py-3 px-4 rounded-2xl transition-all ${
-                            isSelected ? 'border-2 border-vybe-blue bg-tint-blue' : 'border border-border-light bg-white'
-                          } ${canCalculateMatches ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-4 h-4 rounded-full ${
-                              isSelected ? 'border-[5px] border-vybe-blue bg-white' : 'border-2 border-border-light bg-white'
-                            }`} />
-                            <span className="text-[13px] font-semibold text-ink">{TIER_LABELS[tier]}</span>
-                          </div>
-                          <span className={`text-[12px] font-bold ${
-                            hasAccess ? 'text-status-success' : canAfford ? 'text-vybe-blue' : 'text-vybe-red'
-                          }`}>
-                            {hasAccess ? '✓ Unlocked' : cost === 0 ? 'Free' : `${cost} ✨`}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Balance */}
-                  <div className="flex justify-between items-center mt-3 py-2.5 px-3 bg-tint-muted rounded-xl text-[12px] text-ink-muted w-full">
-                    <span>Your balance:</span>
-                    <span className="font-bold text-ink">{vybesBalance} ✨</span>
-                  </div>
-
-                  <button
-                    onClick={() => handleTierButtonClick(selectedTier)}
-                    disabled={!canCalculateMatches || !canAffordTier(selectedTier) || matchState.isLoading}
-                    className={`w-full mt-4 py-3.5 border-none rounded-2xl cursor-pointer text-[14px] font-bold transition-all bg-gradient-red text-white shadow-glow-red active:scale-[0.97] ${
-                      canCalculateMatches && canAffordTier(selectedTier) ? '' : 'opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    {matchState.isLoading ? 'Loading...' :
-                     hasTierAccess(selectedTier) ? `View ${TIER_LABELS[selectedTier]}` :
-                     `Unlock ${TIER_LABELS[selectedTier]} (${TIER_COSTS[selectedTier]} ✨)`}
-                  </button>
-                </>
-              );
-            })()}
-
-            {matchState.matches.length > 0 && (
-              <div className="mt-5 w-full">
-                <div className="mb-3 flex items-center gap-2">
+          <div className="flex flex-col gap-3 animate-fade-in">
+            {/* Floor check */}
+            {(quizState.participantCount < MIN_PARTICIPANTS || quizState.questions.length < MIN_QUESTIONS) && !revealAnyway ? (
+              <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
+                <div className="text-3xl mb-4">🔬</div>
+                <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Small Session</h2>
+                <p className="text-[13px] text-ink-muted m-0 mb-5 leading-[1.6]">
+                  {quizState.participantCount < MIN_PARTICIPANTS
+                    ? `Match scores are most meaningful with ${MIN_PARTICIPANTS}+ people. This session had ${quizState.participantCount}.`
+                    : `Match scores are most meaningful with ${MIN_QUESTIONS}+ questions. This session had ${quizState.questions.length}.`}
+                </p>
+                <button
+                  onClick={() => {
+                    setRevealAnyway(true);
+                    getMatches('PREVIEW');
+                  }}
+                  className="w-full py-3 border-none rounded-2xl text-[13px] font-bold cursor-pointer bg-gradient-red text-white shadow-glow-red active:scale-[0.97] transition-all"
+                >
+                  Reveal my match anyway →
+                </button>
+              </div>
+            ) : matchState.isLoading ? (
+              <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
+                <div className="text-3xl mb-3 animate-spin">⚡</div>
+                <p className="text-[13px] text-ink-muted">Calculating your matches...</p>
+              </div>
+            ) : matchState.matches.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2">
                   <span className="h-2 w-2 shrink-0 rounded-full bg-vybe-red" />
-                  <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">
-                    YOUR MATCHES ({TIER_LABELS[matchState.tier].toUpperCase()})
-                  </p>
+                  <p className="text-[11px] font-extrabold tracking-[0.8px] text-vybe-red">YOUR MATCHES</p>
                   {matchState.cost > 0 && (
-                    <span className="ml-auto text-[11px] text-ink-muted">Cost: {matchState.cost} ✨</span>
+                    <span className="ml-auto text-[11px] text-ink-muted">{matchState.cost} ✨ spent</span>
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  {matchState.matches.map((match, index) => (
-                    <MatchCard key={match.participantId} match={match} rank={index + 1} />
+                  {matchState.matches.map((match, i) => (
+                    <MatchCard key={match.participantId} match={match} rank={i + 1} />
                   ))}
+
+                  {/* Locked placeholder cards when on PREVIEW tier */}
+                  {matchState.tier === 'PREVIEW' && (
+                    <>
+                      {[2, 3].map(rank => (
+                        <div key={rank} className="relative rounded-2xl border border-border-light bg-white p-3.5 overflow-hidden">
+                          <div className="blur-sm opacity-40 flex items-center gap-3 pointer-events-none select-none">
+                            <div className="shrink-0 w-6 text-center">
+                              <span className="text-[12px] font-black text-ink-muted">#{rank}</span>
+                            </div>
+                            <div className="h-9 w-9 rounded-full bg-tint-muted" />
+                            <div className="flex-1 h-3 rounded-full bg-tint-muted" />
+                            <div className="h-10 w-10 rounded-full bg-tint-muted" />
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xl">🔒</span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Upgrade buttons */}
+                      <div className="flex flex-col gap-2 pt-1">
+                        {(['TOP3', 'ALL'] as MatchTier[]).map(tier => (
+                          <button
+                            key={tier}
+                            onClick={() => handleTierButtonClick(tier)}
+                            disabled={!canAffordTier(tier)}
+                            className={`w-full py-3 border-none rounded-2xl text-[13px] font-bold cursor-pointer transition-all active:scale-[0.97] ${
+                              hasTierAccess(tier)
+                                ? 'bg-tint-blue text-vybe-blue'
+                                : canAffordTier(tier)
+                                  ? 'bg-gradient-red text-white shadow-glow-red'
+                                  : 'bg-tint-muted text-ink-muted cursor-not-allowed opacity-60'
+                            }`}
+                          >
+                            {hasTierAccess(tier)
+                              ? `View ${TIER_LABELS[tier]}`
+                              : `Unlock ${TIER_LABELS[tier]} — ${TIER_COSTS[tier]} ✨`}
+                          </button>
+                        ))}
+                        <div className="flex justify-between items-center py-2 px-3 bg-tint-muted rounded-xl text-[12px] text-ink-muted">
+                          <span>Your balance:</span>
+                          <span className="font-bold text-ink">{vybesBalance} ✨</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
+              </>
+            ) : (
+              <div className="rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
+                <div className="w-12 h-12 bg-tint-blue rounded-2xl flex items-center justify-center mb-4">
+                  <Sparkles size={24} className="text-vybe-blue" />
+                </div>
+                <h2 className="text-[17px] font-extrabold text-ink m-0 mb-2">Results are in!</h2>
+                <p className="text-[13px] text-ink-muted m-0">Loading your matches...</p>
               </div>
             )}
           </div>
