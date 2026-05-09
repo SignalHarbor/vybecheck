@@ -431,64 +431,67 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
         {/* Session ID Card */}
         <div className="mb-4 rounded-2xl border border-border-light bg-white p-4 shadow-card-muted">
-          <div className="flex items-center justify-between">
-            <div>
+          {isExpired ? (
+            <div className="flex flex-col items-center gap-1 py-1">
               <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
-              <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId}</p>
+              <p className="font-mono text-[17px] font-bold tracking-[0.25em] text-ink">{sessionId}</p>
             </div>
-            <div className="flex items-center gap-2">
-              {!isExpired && (
-                <>
-                  <button
-                    onClick={copySessionId}
-                    disabled={copied}
-                    title="Copy session ID"
-                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
-                      copied
-                        ? 'border-status-success/30 bg-tint-green text-status-success-dark'
-                        : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
-                    }`}
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                  <button
-                    onClick={shareSession}
-                    title="Share session"
-                    className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-page px-3 py-1.5 text-[11px] font-bold text-ink-muted cursor-pointer transition-all hover:border-vybe-red/30 hover:text-vybe-red"
-                  >
-                    <Share2 size={12} />
-                    Share
-                  </button>
-                </>
-              )}
-              <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
-                <DoorOpen size={10} className="text-ink-muted" />
-                <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : isExpired ? 'CLOSED' : 'ACTIVE'}</span>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold tracking-[1px] text-ink-muted">SESSION ID</p>
+                <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-ink">{sessionId}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={copySessionId}
+                  disabled={copied}
+                  title="Copy session ID"
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-all disabled:cursor-default ${
+                    copied
+                      ? 'border-status-success/30 bg-tint-green text-status-success-dark'
+                      : 'border-border-light bg-surface-page text-ink-muted hover:border-vybe-blue/30 hover:text-vybe-blue'
+                  }`}
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+                <button
+                  onClick={shareSession}
+                  title="Share session"
+                  className="flex items-center gap-1.5 rounded-xl border border-border-light bg-surface-page px-3 py-1.5 text-[11px] font-bold text-ink-muted cursor-pointer transition-all hover:border-vybe-red/30 hover:text-vybe-red"
+                >
+                  <Share2 size={12} />
+                  Share
+                </button>
+                <div className="flex items-center gap-1 rounded-full bg-tint-muted px-2.5 py-1">
+                  <DoorOpen size={10} className="text-ink-muted" />
+                  <span className="text-[10px] font-bold text-ink-muted">{isLobby ? 'LOBBY' : 'ACTIVE'}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Session Closed Banner — persistent, prominent, cannot be dismissed */}
+        {/* Session Closed Banner */}
         {isExpired && (
-          <div className="mb-4 rounded-2xl border border-amber-400/40 bg-amber-400/10 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-400/20">
-                <span className="text-[18px]">🔒</span>
+          <div className="mb-4 rounded-2xl border border-ink/10 bg-surface-header p-5">
+            <div className="flex items-center gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/8">
+                <span className="text-[22px] grayscale opacity-70">🔒</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-extrabold text-amber-700">Session Closed</p>
-                <p className="mt-0.5 text-[12px] text-amber-700/75 leading-relaxed">
-                  Results have been released. Check your match scores now.
+                <p className="text-[13px] font-extrabold text-white/90 tracking-wide">Session Closed</p>
+                <p className="mt-0.5 text-[11px] text-white/45 leading-relaxed">
+                  Results have been released.
                 </p>
-                <button
-                  onClick={() => setActivePage('quiz')}
-                  className="mt-2.5 flex items-center gap-1.5 rounded-xl bg-amber-400 px-3 py-1.5 text-[12px] font-bold text-amber-900 cursor-pointer transition-all active:scale-[0.97] hover:bg-amber-300"
-                >
-                  View your matches →
-                </button>
               </div>
+              <button
+                onClick={() => setActivePage('quiz')}
+                className="shrink-0 rounded-xl bg-vybe-red px-3.5 py-2 text-[12px] font-extrabold text-white cursor-pointer transition-all active:scale-[0.97] hover:bg-vybe-red/85 shadow-sm"
+              >
+                View →
+              </button>
             </div>
           </div>
         )}
