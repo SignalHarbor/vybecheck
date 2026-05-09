@@ -75,12 +75,7 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
                   <span className="text-[10px] font-bold text-vybe-yellow">In Lobby</span>
                 </>
               )}
-              {quizState.status === 'expired' && (
-                <>
-                  <CheckCircle size={9} className="text-ink-muted" />
-                  <span className="text-[10px] font-bold text-ink-muted">Ended</span>
-                </>
-              )}
+
             </div>
           )}
 

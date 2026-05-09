@@ -405,21 +405,21 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header
         title="Lobby"
-        subtitle={isLobby ? 'Waiting for start 🎯' : isExpired ? 'Session closed 🔒' : 'Session active ⚡'}
+        subtitle={isLobby ? 'Waiting for start 🎯' : isExpired ? undefined : 'Session active ⚡'}
         pills={
           <>
-            <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
-              isLobby
-                ? 'border-vybe-yellow/25 bg-vybe-yellow/15'
-                : isExpired
-                ? 'border-ink-muted/30 bg-ink-muted/15'
-                : 'border-status-success/30 bg-status-success/15'
-            }`}>
-              <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isLobby ? 'bg-vybe-yellow' : isExpired ? 'bg-ink-muted' : 'bg-status-success'}`} />
-              <span className={`text-[11px] font-bold ${isLobby ? 'text-vybe-yellow' : isExpired ? 'text-ink-muted' : 'text-status-success'}`}>
-                {isLobby ? 'Lobby' : isExpired ? 'Closed' : 'Active'}
-              </span>
-            </div>
+            {!isExpired && (
+              <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+                isLobby
+                  ? 'border-vybe-yellow/25 bg-vybe-yellow/15'
+                  : 'border-status-success/30 bg-status-success/15'
+              }`}>
+                <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isLobby ? 'bg-vybe-yellow' : 'bg-status-success'}`} />
+                <span className={`text-[11px] font-bold ${isLobby ? 'text-vybe-yellow' : 'text-status-success'}`}>
+                  {isLobby ? 'Lobby' : 'Active'}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
               <Users size={10} className="text-white/55" />
               <span className="text-[11px] text-white/55">{quizState.participantCount} participants</span>
