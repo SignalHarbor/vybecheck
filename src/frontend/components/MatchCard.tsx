@@ -59,13 +59,15 @@ export function MatchCard({ match, rank }: MatchCardProps) {
         animationFillMode: 'both',
       }}
     >
-      {/* Rank medal or number */}
-      <div className="shrink-0 w-6 text-center">
-        {RANK_MEDALS[rank]
-          ? <span className="text-[16px]">{RANK_MEDALS[rank]}</span>
-          : <span className="text-[12px] font-black text-ink-muted">#{rank}</span>
-        }
-      </div>
+      {/* Rank — hidden for rank 1 (shows Best Match badge inline instead) */}
+      {rank > 1 && (
+        <div className="shrink-0 w-6 text-center">
+          {RANK_MEDALS[rank]
+            ? <span className="text-[16px]">{RANK_MEDALS[rank]}</span>
+            : <span className="text-[12px] font-black text-ink-muted">#{rank}</span>
+          }
+        </div>
+      )}
 
       {/* Avatar — Twitter profile picture when available, initials fallback */}
       {match.profileImageUrl ? (
@@ -83,8 +85,13 @@ export function MatchCard({ match, rank }: MatchCardProps) {
         </div>
       )}
 
-      {/* Name */}
-      <span className="flex-1 text-[13px] font-bold text-ink truncate">{name}</span>
+      {/* Name + optional Best Match badge */}
+      <div className="flex flex-col flex-1 min-w-0">
+        <span className="text-[13px] font-bold text-ink truncate">{name}</span>
+        {rank === 1 && (
+          <span className="mt-0.5 text-[10px] font-extrabold tracking-wide text-vybe-red leading-none">✦ Best Match</span>
+        )}
+      </div>
 
       {/* Circular progress ring */}
       <div className="relative shrink-0 flex items-center justify-center" style={{ width: 40, height: 40 }}>
