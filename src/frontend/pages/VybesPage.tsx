@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, History, Lock, Zap, RefreshCw } from 'lucide-react';
+import { Sparkles, History, Lock, LockOpen, Zap, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useUIStore } from '../store/uiStore';
 import { Header } from '../components/Header';
@@ -344,7 +344,9 @@ export function VybesPage() {
                     <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
                       free ? 'bg-tint-green' : 'bg-tint-muted'
                     }`}>
-                      <Lock size={11} className={free ? 'text-status-success-dark' : 'text-ink-muted'} />
+                      {free
+                        ? <LockOpen size={11} className="text-status-success-dark" />
+                        : <Lock size={11} className="text-ink-muted" />}
                     </div>
                     <span className="text-[13px] text-ink">{label}</span>
                   </div>
