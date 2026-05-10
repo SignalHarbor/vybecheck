@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Users, ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2, X, UserX } from 'lucide-react';
+import { ChevronRight, DoorOpen, Zap, XCircle, Copy, Check, Share2, X, UserX } from 'lucide-react';
 import { useQuizStore } from '../store/quizStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
@@ -71,24 +71,6 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       navigator.clipboard.writeText(shareUrl).then(() => showNotification('Share link copied!'));
     }
   };
-
-  const headerPills = (
-    <>
-      {sessionId ? (
-        <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-vybe-yellow" />
-          <span className="text-[11px] font-bold text-vybe-yellow">
-            {quizState?.status === 'live' ? 'In lobby' : quizState?.status === 'expired' ? 'Session closed' : 'Session active'}
-          </span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
-          <Users size={10} className="text-white/55" />
-          <span className="text-[11px] text-white/55">No session</span>
-        </div>
-      )}
-    </>
-  );
 
   // No active session - show create/join options
   if (!sessionId || !quizState) {
@@ -165,7 +147,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
 
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
-        <Header title="Lobby" subtitle="Enter a session 🚪" pills={headerPills} />
+        <Header title="Lobby" subtitle="Enter a session 🚪" />
 
         <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>
           {/* Explainer */}
@@ -406,26 +388,6 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       <Header
         title="Lobby"
         subtitle={isLobby ? 'Waiting for start 🎯' : isExpired ? undefined : 'Session active ⚡'}
-        pills={
-          <>
-            {!isExpired && (
-              <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
-                isLobby
-                  ? 'border-vybe-yellow/25 bg-vybe-yellow/15'
-                  : 'border-status-success/30 bg-status-success/15'
-              }`}>
-                <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${isLobby ? 'bg-vybe-yellow' : 'bg-status-success'}`} />
-                <span className={`text-[11px] font-bold ${isLobby ? 'text-vybe-yellow' : 'text-status-success'}`}>
-                  {isLobby ? 'Lobby' : 'Active'}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
-              <Users size={10} className="text-white/55" />
-              <span className="text-[11px] text-white/55">{quizState.participantCount} participants</span>
-            </div>
-          </>
-        }
       />
 
       <div className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>

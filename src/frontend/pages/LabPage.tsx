@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, ChevronDown, X, Send, Trash2, FlaskConical, Radio } from 'lucide-react';
+import { Mic, ChevronDown, X, Send, Trash2, FlaskConical } from 'lucide-react';
 import { useDraftStore, type DraftQuestion } from '../store/draftStore';
 import { useWebSocketStore } from '../store/websocketStore';
 import { useUIStore } from '../store/uiStore';
@@ -303,36 +303,11 @@ export function LabPage() {
   };
 
   // Header pills
-  const headerPills = (
-    <>
-      {hasActiveSession ? (
-        <div className="flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/15 px-2.5 py-1">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-status-success" />
-          <span className="text-[11px] font-bold text-status-success">Live</span>
-          <span className="mx-0.5 text-status-success/30">|</span>
-          <Radio size={10} className="text-status-success/60" />
-          <span className="font-mono text-[10px] text-status-success/70">{sessionId}</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5 rounded-full border border-vybe-yellow/25 bg-vybe-yellow/15 px-2.5 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-vybe-yellow" />
-          <span className="text-[11px] font-bold text-vybe-yellow">Draft Mode</span>
-        </div>
-      )}
-      {draftQuestions.length > 0 && (
-        <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
-          <span className="text-[11px] text-white/55">{draftQuestions.length} draft{draftQuestions.length !== 1 ? 's' : ''}</span>
-        </div>
-      )}
-    </>
-  );
-
   return (
     <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
       <Header
         title="Lab"
         subtitle="Build your quiz 🔬"
-        pills={headerPills}
       />
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingBottom: '140px' }}>

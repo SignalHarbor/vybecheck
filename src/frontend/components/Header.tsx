@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { Sparkles, Moon, Sun, Radio, Clock, CheckCircle } from 'lucide-react';
+import { Sparkles, Moon, Sun } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useQuizStore } from '../store/quizStore';
 import { useUIStore } from '../store/uiStore';
@@ -54,29 +54,20 @@ export function Header({ title, subtitle, actionIcon, actionColor = 'blue', pill
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Session status chip — shown when there's an active session, hidden when expired */}
-          {sessionId && quizState && quizState.status !== 'expired' && (
-            <div className={`mt-1 flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
-              quizState.status === 'active'
-                ? 'border-vybe-red/30 bg-vybe-red/15'
-                : 'border-vybe-yellow/30 bg-vybe-yellow/15'
-            }`}>
-              {quizState.status === 'active' && (
-                <>
-                  <Radio size={9} className="text-vybe-red animate-pulse" />
-                  <span className="text-[10px] font-bold text-vybe-red">Live</span>
-                </>
-              )}
-              {quizState.status === 'live' && (
-                <>
-                  <Clock size={9} className="text-vybe-yellow" />
-                  <span className="text-[10px] font-bold text-vybe-yellow">In Lobby</span>
-                </>
-              )}
-
-            </div>
+          {/* Session live indicator */}
+          {sessionId && quizState && (
+            quizState.status === 'expired' ? (
+              <div className="mt-1 flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/15 px-2.5 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+                <span className="text-[11px] font-bold text-red-400">Ended</span>
+              </div>
+            ) : (
+              <div className="mt-1 flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-2.5 py-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="text-[11px] font-bold text-emerald-300">Live</span>
+              </div>
+            )
           )}
-
           {/* Dark mode toggle */}
           <button
             onClick={toggleDarkMode}

@@ -175,21 +175,6 @@ export function QuizPage() {
   };
 
   // Status pills for the header
-  const headerPills = (
-    <>
-      <div className="flex items-center gap-1.5 rounded-full border border-vybe-blue/25 bg-vybe-blue/15 px-2.5 py-1">
-        <span className={`h-1.5 w-1.5 rounded-full bg-vybe-blue ${sessionId ? 'animate-pulse' : 'opacity-70'}`} />
-        <span className="text-[11px] font-bold text-vybe-blue">
-          {sessionId ? 'In session' : 'No active session'}
-        </span>
-      </div>
-      <div className="flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1">
-        <Sparkles size={10} className="fill-vybe-yellow text-vybe-yellow" />
-        <span className="text-[11px] text-white/55">{vybesBalance} Vybes</span>
-      </div>
-    </>
-  );
-
   // No active session
   if (!sessionId || !quizState) {
     // DEV DEMO: toggle to preview match cards
@@ -207,7 +192,6 @@ export function QuizPage() {
         <Header
           title="Quiz"
           subtitle="Ready to answer?"
-          pills={headerPills}
         />
 
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -335,7 +319,7 @@ export function QuizPage() {
     const totalQs = quizState.questions.length;
     return (
       <div className="relative flex flex-1 min-h-0 flex-col bg-surface-page font-sans">
-        <Header title="Quiz" subtitle="Session wrapped 🎉" pills={headerPills} />
+        <Header title="Quiz" subtitle="Session wrapped 🎉" />
         <div className="flex-1 overflow-y-auto px-5 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* Summary card */}
           <div className="mb-4 rounded-3xl border border-border-light bg-white p-6 shadow-card-muted flex flex-col items-center text-center">
