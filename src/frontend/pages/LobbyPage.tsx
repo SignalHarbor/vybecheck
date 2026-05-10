@@ -478,7 +478,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                     onClick={isOwner && p.participantId !== participantId ? () => toggleParticipantSelection(p.participantId) : undefined}
                     className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
                       isOwner && p.participantId !== participantId ? 'cursor-pointer' : ''
-                    } ${isOwner && selectedParticipantIds.has(p.participantId) ? 'bg-tint-blue' : ''}`}
+                    }`}
                   >
                     {/* Avatar */}
                     {p.profileImageUrl ? (
@@ -529,7 +529,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                     onClick={isOwner && p.id !== participantId ? () => toggleParticipantSelection(p.id) : undefined}
                     className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
                       isOwner && p.id !== participantId ? 'cursor-pointer' : ''
-                    } ${isOwner && selectedParticipantIds.has(p.id) ? 'bg-tint-blue' : ''}`}
+                    }`}
                   >
                     {/* Avatar */}
                     {p.profileImageUrl ? (
