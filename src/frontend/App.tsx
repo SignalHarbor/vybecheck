@@ -169,7 +169,7 @@ function App() {
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       wsRef.current?.close();
     };
-  }, [];
+  }, []);
 
   // Kept as useCallback so the function identity is stable across renders;
   // the ref below ensures the WebSocket listener always calls the latest version.
