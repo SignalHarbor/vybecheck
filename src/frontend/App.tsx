@@ -106,6 +106,10 @@ function App() {
 
   useEffect(() => {
     if (isTransientPage) return;
+
+    // Reset so a StrictMode re-mount can reconnect
+    destroyedRef.current = false;
+
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = import.meta.env.DEV
       ? `${wsProtocol}//${window.location.host}/ws`
