@@ -24,12 +24,14 @@ function App() {
   const { connected, setWebSocket, setConnected } = useWebSocketStore();
   const { sessionId, participantId, setSessionId, setParticipantId, setIsOwner, setQuizState, updateQuizState, setMatchState, setQuestionLimitState, clearQuestionLimitState, isOwner, quizState, reset: resetQuizStore } = useQuizStore();
   const { isSignedIn, setSignedIn, setVybesBalance, addFeatureUnlock, setTransactionHistory, revalidateSession, authToken } = useAuthStore();
-  const { activePage, setActivePage, notification, error, info, showNotification, showError, showInfo, clearNotification, clearError, clearInfo } = useUIStore();
+  const { activePage, setActivePage, notification, error, info, showNotification, showError, showInfo, clearNotification, clearError, clearInfo, newQuestionCount, incrementNewQuestionCount, clearNewQuestionCount } = useUIStore();
   const { draftQuestions } = useDraftStore();
 
   // Track page views whenever the active tab changes
   useEffect(() => {
     analytics.capture('$pageview', { page: activePage });
+    // Clear new-question badge when participant visits the quiz page
+    if (activePage === 'quiz') clearNewQuestionCount();
   }, [activePage]);
 
   // Scroll position memory — restore per-tab scroll on tab switch
@@ -269,7 +271,9 @@ function App() {
           };
         });
         clearQuestionLimitState(); // Clear any limit warning since question was added
-        showNotification('New question added!');
+        if (!isOwner && useUIStore.getState().activePage !== 'quiz') {
+          incrementNewQuestionCount();
+        }
         break;
 
       case 'question:limit-reached':
@@ -442,7 +446,6 @@ function App() {
     );
   }
 
-  // Show start page only when not signed in
   if (!isSignedIn) {
     return (
       <div className="w-screen max-w-app h-screen mx-auto bg-surface-page flex flex-col overflow-hidden shadow-app relative">
@@ -450,12 +453,6 @@ function App() {
         {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}
       </div>
     );
-  }
-
-
-  // Signed-in users shouldn't be on 'start' — default to Lobby
-  if (activePage === 'start') {
-    setActivePage('lobby');
   }
 
   // Active session banner: show when user has a session but isn't on Lobby or Quiz
@@ -524,6 +521,8 @@ function App() {
         </div>
       )}
 
+
+
       {/* Onboarding replay button — in flow, above BottomNav on Lobby */}
       {activePage === 'lobby' && !showOnboarding && (
         <div className="shrink-0 flex justify-end px-4 py-2 bg-surface-page">
@@ -548,6 +547,43 @@ function App() {
         participantCount={quizState?.participantCount}
         onLockedTap={showInfo}
       />
+
+      {/* New questions side capsule — fixed to right edge of the app container */}
+      {newQuestionCount > 0 && activePage !== 'quiz' && (
+        <div
+          key={newQuestionCount}
+          className="fixed z-50 animate-slide-in-tab"
+          style={{
+            right: 'max(0px, calc((100vw - 430px) / 2))',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        >
+          {/* Dismiss dot */}
+          <button
+            onClick={clearNewQuestionCount}
+            className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-white text-[11px] leading-none border-2 border-surface-page cursor-pointer z-10"
+            title="Dismiss"
+          >
+            ×
+          </button>
+
+          {/* Main tap area */}
+          <button
+            onClick={() => { setActivePage('quiz'); clearNewQuestionCount(); }}
+            className="flex flex-col items-center gap-2 rounded-l-2xl border-l border-t border-b border-vybe-yellow/40 bg-tint-yellow px-3 py-4 shadow-[-4px_0_24px_rgba(254,197,57,0.3)] cursor-pointer active:scale-95 transition-transform"
+          >
+            <span className="h-2 w-2 rounded-full bg-vybe-yellow animate-pulse shrink-0" />
+            <span className="text-[18px] font-black text-ink leading-none">{newQuestionCount}</span>
+            <span
+              className="text-[10px] font-bold tracking-wide text-vybe-gold leading-none"
+              style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
+            >
+              NEW Q
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* First-time onboarding overlay */}
       {showOnboarding && <OnboardingPage onComplete={completeOnboarding} />}

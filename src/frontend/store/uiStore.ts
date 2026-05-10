@@ -45,6 +45,7 @@ interface UIStore {
   error: string;
   info: string;
   isDarkMode: boolean;
+  newQuestionCount: number;
   
   setActivePage: (page: PageType) => void;
   toggleDarkMode: () => void;
@@ -54,6 +55,8 @@ interface UIStore {
   clearNotification: () => void;
   clearError: () => void;
   clearInfo: () => void;
+  incrementNewQuestionCount: () => void;
+  clearNewQuestionCount: () => void;
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -62,6 +65,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   error: '',
   info: '',
   isDarkMode: initialDark,
+  newQuestionCount: 0,
   
   setActivePage: (page) => {
     try {
@@ -104,4 +108,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   clearError: () => set({ error: '' }),
 
   clearInfo: () => set({ info: '' }),
+
+  incrementNewQuestionCount: () => set((state) => ({ newQuestionCount: state.newQuestionCount + 1 })),
+
+  clearNewQuestionCount: () => set({ newQuestionCount: 0 }),
 }));

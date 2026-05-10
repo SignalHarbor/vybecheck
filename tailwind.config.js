@@ -112,6 +112,7 @@ export default {
         'fade-out-shrink': 'fadeOutShrink 0.22s ease-in forwards',
         'shimmer': 'shimmer 2s ease-in-out infinite',
         'bounce-in': 'bounceIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+        'slide-in-tab': 'slideInTab 0.35s cubic-bezier(0.34,1.4,0.64,1) both',
       },
       keyframes: {
         slideDown: {
@@ -145,6 +146,10 @@ export default {
         bounceIn: {
           from: { opacity: '0', transform: 'scale(0.85)' },
           to: { opacity: '1', transform: 'scale(1)' },
+        },
+        slideInTab: {
+          from: { transform: 'translateX(110%)' },
+          to:   { transform: 'translateX(0)' },
         },
       },
       maxWidth: {
