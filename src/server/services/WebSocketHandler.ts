@@ -857,8 +857,9 @@ export class WebSocketHandler {
     let tieredMatches: MatchResult[];
     switch (tier) {
       case 'PREVIEW':
-        // Return only the #1 match — best result shown free to incentivise upgrade
-        tieredMatches = matchResults.slice(0, 1);
+        // Return 2 matches from the middle
+        const midStart = Math.floor(matchResults.length / 2) - 1;
+        tieredMatches = matchResults.slice(Math.max(0, midStart), midStart + 2);
         break;
       case 'TOP3':
         tieredMatches = matchResults.slice(0, 3);
