@@ -506,28 +506,26 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 return (
                   <div
                     key={p.participantId}
-                    onClick={p.participantId !== participantId ? () => toggleParticipantSelection(p.participantId) : undefined}
+                    onClick={isOwner && p.participantId !== participantId ? () => toggleParticipantSelection(p.participantId) : undefined}
                     className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
-                      p.participantId !== participantId ? 'cursor-pointer' : ''
-                    } ${selectedParticipantIds.has(p.participantId) ? 'bg-tint-blue' : ''}`}
+                      isOwner && p.participantId !== participantId ? 'cursor-pointer' : ''
+                    } ${isOwner && selectedParticipantIds.has(p.participantId) ? 'bg-tint-blue' : ''}`}
                   >
-                    {/* Selection indicator (all rows except own) */}
-                    {p.participantId !== participantId && (
-                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                        selectedParticipantIds.has(p.participantId) ? 'border-vybe-blue bg-vybe-blue' : 'border-border-light bg-white'
-                      }`}>
-                        {selectedParticipantIds.has(p.participantId) && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        )}
+                    {/* Avatar */}
+                    {p.profileImageUrl ? (
+                      <img
+                        src={p.profileImageUrl}
+                        alt={name}
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+                        style={{ background: `hsl(${hue},55%,52%)` }}
+                      >
+                        {initials}
                       </div>
                     )}
-                    {/* Avatar */}
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
-                      style={{ background: `hsl(${hue},55%,52%)` }}
-                    >
-                      {initials}
-                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] font-bold text-ink truncate">{name}</span>
@@ -559,28 +557,26 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
                 return (
                   <div
                     key={p.id}
-                    onClick={p.id !== participantId ? () => toggleParticipantSelection(p.id) : undefined}
+                    onClick={isOwner && p.id !== participantId ? () => toggleParticipantSelection(p.id) : undefined}
                     className={`flex items-center gap-3 py-3 border-b border-border-light last:border-b-0 animate-fade-in transition-colors ${
-                      p.id !== participantId ? 'cursor-pointer' : ''
-                    } ${selectedParticipantIds.has(p.id) ? 'bg-tint-blue' : ''}`}
+                      isOwner && p.id !== participantId ? 'cursor-pointer' : ''
+                    } ${isOwner && selectedParticipantIds.has(p.id) ? 'bg-tint-blue' : ''}`}
                   >
-                    {/* Selection indicator (all rows except own) */}
-                    {p.id !== participantId && (
-                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                        selectedParticipantIds.has(p.id) ? 'border-vybe-blue bg-vybe-blue' : 'border-border-light bg-white'
-                      }`}>
-                        {selectedParticipantIds.has(p.id) && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        )}
+                    {/* Avatar */}
+                    {p.profileImageUrl ? (
+                      <img
+                        src={p.profileImageUrl}
+                        alt={name}
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+                        style={{ background: `hsl(${hue},55%,52%)` }}
+                      >
+                        {initials}
                       </div>
                     )}
-                    {/* Avatar */}
-                    <div
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
-                      style={{ background: `hsl(${hue},55%,52%)` }}
-                    >
-                      {initials}
-                    </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[13px] font-bold text-ink">{name}</span>
                       {p.isOwner && <span className="text-[10px]" title="Owner">👑</span>}

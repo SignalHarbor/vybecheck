@@ -8,6 +8,7 @@ export interface ParticipantProgress {
   completionPercent: number;
   isOwner: boolean;
   isActive: boolean;
+  profileImageUrl: string | null;
 }
 
 export interface QuizSessionData {
@@ -279,6 +280,7 @@ export class QuizSession {
         completionPercent: totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0,
         isOwner: p.isOwner,
         isActive: p.isActive,
+        profileImageUrl: p.profileImageUrl ?? null,
       };
     });
   }
