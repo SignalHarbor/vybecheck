@@ -244,7 +244,7 @@ function App() {
       case 'session:terminated':
         resetQuizStore();
         setActivePage('lobby');
-        showNotification('Session has been terminated');
+        showError('Session has been terminated');
         break;
 
       case 'session:results-released':
