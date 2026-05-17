@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import type { AuthService } from '../services/AuthService';
 import logger from '../utils/logger';
+import { getAnalyticsServer } from '../utils/analytics';
 
 export function createAuthRoutes(authService: AuthService): Router {
   const router = Router();
@@ -34,9 +35,32 @@ export function createAuthRoutes(authService: AuthService): Router {
         clientSecret: clientSecret || undefined,
       });
 
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.identify({
+          distinctId: result.user.twitterId,
+          properties: {
+            username: result.user.username,
+            display_name: result.user.displayName,
+          },
+        });
+        posthog.capture({
+          distinctId: result.user.twitterId,
+          event: 'user_authenticated',
+          properties: {
+            username: result.user.username,
+            display_name: result.user.displayName,
+          },
+        });
+      }
+
       res.json(result);
     } catch (err: unknown) {
       logger.error({ err }, 'Twitter auth token exchange failed');
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.captureException(err, 'anonymous');
+      }
       res.status(401).json({ error: 'Authentication failed' });
     }
   });

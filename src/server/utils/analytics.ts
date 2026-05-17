@@ -12,6 +12,7 @@ export function getAnalyticsServer(): PostHog | null {
     host: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
     flushAt: 1,   // send immediately — low-volume server events
     flushInterval: 0,
+    enableExceptionAutocapture: true,
   });
 
   return _client;

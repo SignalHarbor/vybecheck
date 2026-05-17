@@ -2,6 +2,12 @@ FROM node:20-slim AS build
 
 WORKDIR /app
 
+# Build-time env vars for Vite (baked into the frontend bundle)
+ARG VITE_POSTHOG_KEY
+ARG VITE_POSTHOG_HOST
+ENV VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY
+ENV VITE_POSTHOG_HOST=$VITE_POSTHOG_HOST
+
 # Copy package files
 COPY package*.json ./
 

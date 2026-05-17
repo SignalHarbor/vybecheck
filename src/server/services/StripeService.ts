@@ -127,6 +127,21 @@ export class StripeService {
       throw new Error('Failed to create checkout session URL');
     }
 
+    const posthog = getAnalyticsServer();
+    if (posthog) {
+      posthog.capture({
+        distinctId: participantId,
+        event: 'checkout_initiated',
+        properties: {
+          pack_id: packId,
+          pack_name: pack.name,
+          pack_vybes: pack.vybes,
+          pack_price_usd: pack.priceUsd,
+          stripe_session_id: session.id,
+        },
+      });
+    }
+
     return {
       url: session.url,
       sessionId: session.id,

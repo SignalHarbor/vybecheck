@@ -239,9 +239,14 @@ function App() {
           showNotification('Session started! Answer the questions now.');
           setActivePage('quiz');
         }
+        analytics.capture('session_started', {
+          session_id: useQuizStore.getState().sessionId,
+          is_owner: useQuizStore.getState().isOwner,
+        });
         break;
 
       case 'session:terminated':
+        analytics.capture('session_terminated', { session_id: useQuizStore.getState().sessionId });
         resetQuizStore();
         setActivePage('lobby');
         showError('Session has been terminated');
