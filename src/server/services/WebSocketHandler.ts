@@ -369,6 +369,7 @@ export class WebSocketHandler {
         participantId: participant.id,
         isOwner: participant.isOwner,
         vybesBalance,
+        sessionStatus: session.status,
       },
     });
 
