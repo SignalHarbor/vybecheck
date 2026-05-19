@@ -6,8 +6,9 @@ import { initAnalytics } from './frontend/utils/analytics';
 
 initAnalytics();
 
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+      <App />
   </React.StrictMode>,
 );

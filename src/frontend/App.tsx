@@ -188,6 +188,7 @@ function App() {
         setParticipantId(message.data.participantId);
         setIsOwner(true);
         setVybesBalance(message.data.vybesBalance);
+        setMatchState({ matches: [], tier: 'PREVIEW', cost: 0, isLoading: false }); // reset stale matches from prior session
         setActivePage('lab');
         analytics.capture('session_created', { session_id: message.data.sessionId });
         analytics.group('session', message.data.sessionId, { session_id: message.data.sessionId, is_owner: true });
@@ -198,6 +199,7 @@ function App() {
         setParticipantId(message.data.participantId);
         setIsOwner(message.data.isOwner);
         setVybesBalance(message.data.vybesBalance);
+        setMatchState({ matches: [], tier: 'PREVIEW', cost: 0, isLoading: false }); // reset stale matches from prior session
         // Mark as signed in (as guest participant if not already signed in)
         if (!isSignedIn) {
           setSignedIn(`guest_${message.data.participantId.slice(0, 6)}`);
@@ -237,9 +239,14 @@ function App() {
           showNotification('Session started! Answer the questions now.');
           setActivePage('quiz');
         }
+        analytics.capture('session_started', {
+          session_id: useQuizStore.getState().sessionId,
+          is_owner: useQuizStore.getState().isOwner,
+        });
         break;
 
       case 'session:terminated':
+        analytics.capture('session_terminated', { session_id: useQuizStore.getState().sessionId });
         resetQuizStore();
         setActivePage('lobby');
         showError('Session has been terminated');
@@ -257,6 +264,14 @@ function App() {
 
       case 'quiz:state':
         setQuizState(message.data);
+        // Safety net: if we land on an expired session with results released but no matches
+        // loaded (e.g. reconnect after page reload), trigger a PREVIEW fetch automatically.
+        if (message.data.resultsReleased && message.data.status === 'expired') {
+          const { matchState: ms } = useQuizStore.getState();
+          if (ms.matches.length === 0 && !ms.isLoading) {
+            useWebSocketStore.getState().send({ type: 'matches:get', data: { tier: 'PREVIEW' } });
+          }
+        }
         break;
 
       case 'question:added':

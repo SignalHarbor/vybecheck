@@ -17,6 +17,7 @@ import { LedgerRepository } from '../db/repositories/LedgerRepository';
 import { UnlockRepository } from '../db/repositories/UnlockRepository';
 import { StripeSessionRepository } from '../db/repositories/StripeSessionRepository';
 import logger from '../utils/logger';
+import { getAnalyticsServer } from '../utils/analytics';
 
 // Pricing constants
 const FEATURE_COSTS: Record<UnlockableFeature, number> = {
@@ -479,14 +480,29 @@ export class WebSocketHandler {
         }
       }
       
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: connectionInfo.participantId,
+          event: 'question_added',
+          properties: {
+            session_id: session.sessionId,
+            question_id: question.id,
+            question_number: session.questions.length,
+            has_timer: question.timer != null,
+            owner_answered: Boolean(data.ownerResponse),
+          },
+        });
+      }
+
       this.broadcastToSession(session, {
         type: 'question:added',
         data: { question }
       });
-      
+
       // Send updated quiz state to owner (includes their response if recorded)
       this.sendQuizState(ws, session, connectionInfo.participantId);
-      
+
       this.broadcastToSession(session, {
         type: 'notification',
         message: 'New question added!'
@@ -540,6 +556,23 @@ export class WebSocketHandler {
 
     if (result.granted) {
       const newLimit = this.quotaManager.getQuestionLimit(connectionInfo.participantId, session.sessionId);
+
+      if (result.charged) {
+        const posthog = getAnalyticsServer();
+        if (posthog) {
+          posthog.capture({
+            distinctId: connectionInfo.participantId,
+            event: 'question_limit_upgraded',
+            properties: {
+              session_id: session.sessionId,
+              cost_vybes: FEATURE_COSTS.QUESTION_LIMIT_10,
+              new_limit: newLimit,
+              remaining_balance: result.balance,
+            },
+          });
+        }
+      }
+
       this.send(ws, {
         type: 'question:limit-unlocked',
         data: {
@@ -592,6 +625,20 @@ export class WebSocketHandler {
         });
       }
 
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: connectionInfo.participantId,
+          event: 'response_submitted',
+          properties: {
+            session_id: session.sessionId,
+            question_id: data.questionId,
+            responses_completed: session.getResponseValuesForParticipant(connectionInfo.participantId).filter(Boolean).length,
+            total_questions: session.questions.length,
+          },
+        });
+      }
+
       this.sendQuizState(ws, session, connectionInfo.participantId);
       this.broadcastToSession(session, {
         type: 'response:recorded',
@@ -634,6 +681,19 @@ export class WebSocketHandler {
       // Persist status change to DB
       if (this.sessionRepo) {
         this.sessionRepo.updateStatus(session.sessionId, session.status);
+      }
+
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: connectionInfo.participantId,
+          event: 'session_started',
+          properties: {
+            session_id: session.sessionId,
+            question_count: session.questions.length,
+            participant_count: session.getParticipantCount(),
+          },
+        });
       }
 
       this.broadcastToSession(session, { type: 'session:started' });
@@ -721,6 +781,19 @@ export class WebSocketHandler {
       // Persist status change to DB
       if (this.sessionRepo) {
         this.sessionRepo.updateStatus(session.sessionId, session.status);
+      }
+
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: connectionInfo.participantId,
+          event: 'session_terminated',
+          properties: {
+            session_id: session.sessionId,
+            question_count: session.questions.length,
+            participant_count: session.getParticipantCount(),
+          },
+        });
       }
 
       this.broadcastToSession(session, { type: 'session:terminated' });
@@ -870,6 +943,23 @@ export class WebSocketHandler {
         break;
       default:
         tieredMatches = [];
+    }
+
+    if (result.charged) {
+      const posthog = getAnalyticsServer();
+      if (posthog) {
+        posthog.capture({
+          distinctId: connectionInfo.participantId,
+          event: 'match_tier_unlocked',
+          properties: {
+            session_id: session.sessionId,
+            tier,
+            cost_vybes: cost,
+            match_count: tieredMatches.length,
+            remaining_balance: result.balance,
+          },
+        });
+      }
     }
 
     this.send(ws, {

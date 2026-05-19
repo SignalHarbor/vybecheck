@@ -1,0 +1,22 @@
+[
+  {
+    "event": "session_started",
+    "description": "Host starts the quiz session so participants can answer questions",
+    "file": "src/frontend/App.tsx"
+  },
+  {
+    "event": "session_terminated",
+    "description": "A session is forcibly terminated by the host before results are released",
+    "file": "src/frontend/App.tsx"
+  },
+  {
+    "event": "session_link_copied",
+    "description": "Host copies the shareable session join link to clipboard",
+    "file": "src/frontend/pages/LobbyPage.tsx"
+  },
+  {
+    "event": "session_link_shared",
+    "description": "Host uses the native share sheet to share the session join link",
+    "file": "src/frontend/pages/LobbyPage.tsx"
+  }
+]

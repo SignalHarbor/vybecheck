@@ -9,6 +9,7 @@ import { Header } from '../components/Header';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { haptic } from '../utils/haptic';
 import { parseJoinInput } from '../utils/parseJoinInput';
+import { analytics } from '../utils/analytics';
 
 
 /** Sanitise and cap a raw session code input to 6 valid chars. */
@@ -46,6 +47,7 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
       haptic();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      analytics.capture('session_link_copied', { session_id: sessionId });
     });
   };
 
@@ -66,9 +68,13 @@ export function LobbyPage({ prefilledSessionId }: { prefilledSessionId?: string 
           text: `Join my live quiz — session code: ${sessionId}`,
           url: shareUrl,
         });
+        analytics.capture('session_link_shared', { session_id: sessionId, method: 'native_share' });
       } catch { /* user cancelled */ }
     } else {
-      navigator.clipboard.writeText(shareUrl).then(() => showNotification('Share link copied!'));
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showNotification('Share link copied!');
+        analytics.capture('session_link_shared', { session_id: sessionId, method: 'clipboard_fallback' });
+      });
     }
   };
 
