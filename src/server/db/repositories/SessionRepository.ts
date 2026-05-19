@@ -169,6 +169,7 @@ export class SessionRepository {
       joinedAt: new Date(row.joined_at),
       lastActiveAt: new Date(row.last_active_at),
       isActive: row.is_active === 1,
+      profileImageUrl: null,
     };
   }
 }

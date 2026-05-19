@@ -7,6 +7,7 @@ import { useUIStore } from './store/uiStore';
 import { useDraftStore } from './store/draftStore';
 import { LoadingScreen } from './components/LoadingScreen';
 import { BottomNav } from './components/BottomNav';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { StartPage } from './pages/StartPage';
 import { LabPage } from './pages/LabPage';
 import { QuizPage } from './pages/QuizPage';
@@ -215,11 +216,10 @@ function App() {
         setParticipantId(message.data.participantId);
         setIsOwner(message.data.isOwner);
         setVybesBalance(message.data.vybesBalance);
-        // Route to the right page. quiz:state arrives right after — if we don't yet know
-        // the session status (quizState === null on fresh load), send non-owners to quiz
-        // and owners to lobby; the subsequent quiz:state will correct the view as needed.
-        const currentQuizState = useQuizStore.getState().quizState;
-        if (currentQuizState?.status === 'expired') {
+        // Route unconditionally using the server-supplied sessionStatus so that
+        // a page refresh (where quizState is null until quiz:state arrives) still
+        // lands the user on the right page immediately.
+        if (message.data.sessionStatus === 'expired') {
           setActivePage('quiz'); // show results / match screen
         } else if (message.data.isOwner) {
           setActivePage('lobby');
@@ -410,12 +410,12 @@ function App() {
         break;
 
       case 'error':
-        // If reconnect failed, clear stale session state
-        if (message.message.includes('not found')) {
-          console.log('[Reconnect] Session/participant not found, clearing stored state');
-          resetQuizStore();
-        }
         showError(message.message);
+        // Do NOT auto-wipe session state on reconnect errors. If the server
+        // temporarily can't find the session (e.g. Fly.io resumed a second
+        // machine), the WebSocket backoff will retry and eventually reconnect
+        // to the right machine. Wiping localStorage here permanently destroys
+        // the participant's session data and prevents self-healing.
         break;
     }
   }, [setSessionId, setParticipantId, setIsOwner, setVybesBalance, setSignedIn, setActivePage,
@@ -509,12 +509,14 @@ function App() {
       )}
 
       {/* Page content — re-keyed on route change to trigger fade-in */}
-      <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
-        {activePage === 'lab' && <LabPage />}
-        {activePage === 'quiz' && <QuizPage />}
-        {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
-        {activePage === 'vybes' && <VybesPage />}
-      </div>
+      <ErrorBoundary>
+        <div key={activePage} className={`flex-1 min-h-0 flex flex-col overflow-hidden ${slideDir.current === 'right' ? 'animate-slide-from-right' : 'animate-slide-from-left'}`} ref={scrollContainerRef}>
+          {activePage === 'lab' && <LabPage />}
+          {activePage === 'quiz' && <QuizPage />}
+          {activePage === 'lobby' && <LobbyPage prefilledSessionId={deeplinkSessionId} />}
+          {activePage === 'vybes' && <VybesPage />}
+        </div>
+      </ErrorBoundary>
 
       {/* Active session banner — in flow, sits directly above BottomNav, no overlap */}
       {showSessionBanner && (

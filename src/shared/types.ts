@@ -30,7 +30,7 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'session:created'; data: { sessionId: string; participantId: string; vybesBalance: number } }
   | { type: 'session:joined'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
-  | { type: 'session:reconnected'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number } }
+  | { type: 'session:reconnected'; data: { sessionId: string; participantId: string; isOwner: boolean; vybesBalance: number; sessionStatus: 'live' | 'active' | 'expired' } }
   | { type: 'session:started' }
   | { type: 'session:terminated' }
   | { type: 'session:results-released' }

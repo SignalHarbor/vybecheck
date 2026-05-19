@@ -1,0 +1,368 @@
+================================================================================
+                        VYBECHECK — CODEBASE SUMMARY
+                              Generated: May 7, 2026
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PURPOSE & TARGET USERS
+--------------------------------------------------------------------------------
+
+VybeCheck is an interactive quiz platform for Twitter Spaces that:
+- Transforms live Twitter Spaces conversations into rapid-fire true/false quizzes
+  (5–10 second answer windows)
+- Matches participants based on RESPONSE AGREEMENT (not correctness) —
+  participants with similar answers get higher compatibility scores
+- Supports long-running sessions (2–3 months) for async participation after the
+  Space ends
+- Monetizes through a credit-based ("Vybes") system for premium features
+
+Target Users:
+- Twitter Space hosts wanting to engage audiences interactively
+- Participants discovering vibe compatibility with others
+- Premium users wanting detailed match insights
+
+--------------------------------------------------------------------------------
+2. TECH STACK
+--------------------------------------------------------------------------------
+
+Frontend:
+  - React 19 + Vite (SPA)
+  - TypeScript (ES2022, strict mode)
+  - Zustand (state management)
+  - Tailwind CSS 4 + PostCSS
+  - Lucide Icons
+  - PostHog (analytics)
+
+Backend:
+  - Node.js (v20+) + Express.js (REST API)
+  - WebSockets (ws library) — real-time quiz, responses, matches
+  - TypeScript (strict mode)
+  - SQLite (better-sqlite3) — persistent storage with write-through caching
+  - Stripe (payment processing)
+  - OpenAI API (transcription + question generation via GPT-4o + Whisper)
+  - JWT + Twitter OAuth 2.0 with PKCE (authentication)
+  - Pino (logging)
+
+Deployment:
+  - Backend:  Fly.io (WebSocket + API server, region: iad, 256 MB, 1 shared CPU)
+  - Frontend: Cloudflare Pages (static SPA)
+  - Database: SQLite mounted on Fly.io volume at /app/data
+
+--------------------------------------------------------------------------------
+3. MAJOR FEATURES IMPLEMENTED
+--------------------------------------------------------------------------------
+
+A. Authentication
+   - Twitter OAuth 2.0 with PKCE flow
+   - JWT tokens (30-day expiration)
+   - User profile persistence (Twitter ID, username, display name, avatar)
+   - src/server/services/AuthService.ts — token exchange & validation
+   - src/frontend/store/authStore.ts — client auth state
+
+B. Quiz Management
+   - Session Creation: host creates unique 6-character session IDs
+   - Dynamic Question Addition: owners add questions (exactly 2 options each)
+   - Real-time Responses: participants submit answers within timer window
+   - Session Lifecycle:
+       live → active (quiz ongoing) → expired (closed after 3 months)
+   - src/server/models/QuizSession.ts — core session logic
+   - src/server/models/Question.ts, Response.ts — data models
+
+C. Matching Engine
+   - Agreement-based: calculates match % between participants based on
+     identical responses
+   - Tiered Results (3 tiers, different visibility):
+       PREVIEW  — 2 matches (free)
+       TOP3     — Top 3 matches (2 Vybes)
+       ALL      — All matches sorted by compatibility (5 Vybes)
+   - Caching: 10-minute TTL, invalidated on quiz state changes
+   - src/server/services/MatchingService.ts
+
+D. Monetization System (Credit-Based "Vybes")
+   - Initial Allocation: 10 Vybes per new user
+   - Purchase Packs:
+       Starter:  20 Vybes for $5
+       Pro:      50 Vybes for $10  (popular)
+       Ultimate: 120 Vybes for $20
+   - Unlock Costs:
+       MATCH_TOP3:          2 Vybes
+       MATCH_ALL:           5 Vybes
+       QUESTION_LIMIT_10:   3 Vybes (extends from 3 → 10 questions per session)
+   - Idempotent purchases — no double-charging on refresh/retry
+   - src/server/services/BillingService.ts — core billing logic
+   - src/server/models/VybeLedger.ts — append-only transaction ledger
+   - src/server/models/ParticipantUnlock.ts — feature unlock tracking
+   - src/server/models/QuotaManager.ts — question limit enforcement
+
+E. Payment Processing
+   - Stripe Integration: checkout sessions, webhook handling
+   - Automatic credit issuance on successful payment via Stripe webhook
+   - src/server/services/StripeService.ts
+   - src/server/routes/payment.ts
+
+F. AI Features (Feature-Flagged)
+   - Audio Transcription: upload MP3 → OpenAI Whisper API
+   - Question Generation: GPT-4o generates quiz questions from transcripts
+   - Validates MP3 format (ID3v2 or MPEG sync word)
+   - src/server/services/QuestionGeneratorService.ts
+   - src/server/services/TranscriptionService.ts
+   - src/server/routes/ai.ts
+
+G. WebSocket Real-time Communication
+   - Session Messages:   create, join, reconnect, leave, start, terminate,
+                         release-results
+   - Question Messages:  add questions, unlock question limit
+   - Response Messages:  submit answers
+   - Match Messages:     request matches by tier
+   - Credits Messages:   check balance, view history
+   - Ping/Pong:          connection health checks
+   - src/server/services/WebSocketHandler.ts (1000+ lines, core event handler)
+
+H. Persistence & Database
+   - SQLite Schema:
+       Users               (Twitter profile)
+       Sessions            (quiz metadata)
+       Participants        (per-session)
+       Questions           (per-session)
+       Responses           (per-session)
+       VybeLedger          (transactions)
+       ParticipantUnlocks  (feature access)
+       StripeCheckoutSessions (idempotency tracking)
+   - Write-through caching: in-memory structs sync to DB
+   - src/server/db/database.ts — schema init
+   - src/server/db/repositories/ — DAO layer
+
+I. Feature Flags
+   - src/shared/features.ts — flag definitions
+   - Flags: enablePayments, enableAIGeneration
+   - Admin users (ADMIN_USERS array) bypass all flags
+   - Dev mode auto-enables all flags
+
+--------------------------------------------------------------------------------
+4. KEY PAGES
+--------------------------------------------------------------------------------
+
+  StartPage       Login & session join entry point
+  LobbyPage       Create/join sessions, show active session
+  LabPage         Question editor (manual + AI generation), publish to session
+  QuizPage        Answer questions, view matches by tier
+  VybesPage       Purchase credits, view balance & transaction history
+  OnboardingPage  First-time user tour (versioned, skippable)
+  AuthCallback    Twitter OAuth redirect handler
+  PurchaseSuccess / PurchaseCancel / PurchaseError — Stripe result pages
+
+--------------------------------------------------------------------------------
+5. KEY COMPONENTS
+--------------------------------------------------------------------------------
+
+  Header          Navigation pills, title
+  BottomNav       Tab navigation (Lobby, Lab, Quiz, Vybes)
+  QuestionCard    Display question + option buttons
+  DraftQuestionCard  Editable draft question preview
+  MatchCard       Animated circular progress ring + participant name
+  ParticipantList Show active participants with join notifications
+  ConfirmDialog   Reusable confirmation modal
+  LoadingScreen   Connection status overlay
+  Confetti        Celebration animation on quiz completion
+
+--------------------------------------------------------------------------------
+6. SERVER ROUTES & API ENDPOINTS
+--------------------------------------------------------------------------------
+
+  POST  /api/auth/twitter/token      Exchange OAuth code → JWT
+  GET   /api/auth/me                 Validate token & return user
+  POST  /api/checkout                Create Stripe checkout session
+  GET   /api/checkout/verify         Verify session & award credits
+  GET   /api/packs                   List available Vybe packs
+  POST  /api/webhooks/stripe         Stripe webhook (raw body)
+  GET   /api/vybes/balance           Get user's Vybe balance
+  GET   /api/vybes/history           Transaction history
+  POST  /api/vybes/issue             Admin: issue Vybes directly
+  POST  /api/ai/generate-questions   Upload MP3 → transcribe + generate questions
+
+WebSocket Client → Server message types:
+  session:create, session:join, session:reconnect, session:leave,
+  session:start, session:terminate, session:release-results,
+  question:add, question:unlock-limit,
+  response:submit,
+  matches:get (with tier param),
+  credits:balance, credits:history,
+  ping
+
+WebSocket Server → Client message types:
+  Session events, quiz state updates, participant joins/leaves,
+  question/response confirmations, match results (cost + balance),
+  credit balance & transaction history, errors & notifications
+
+--------------------------------------------------------------------------------
+7. SERVER SERVICES
+--------------------------------------------------------------------------------
+
+  AuthService              Twitter OAuth token exchange, JWT sign/validate
+  WebSocketHandler         Core event orchestration (1000+ lines)
+  MatchingService          Match % calculation, tier slicing, 10-min cache
+  BillingService           Purchase logic, entitlement checks, idempotency
+  StripeService            Checkout creation, webhook handling, credit issuance
+  QuestionGeneratorService GPT-4o question generation from transcript text
+  TranscriptionService     OpenAI Whisper audio transcription
+
+--------------------------------------------------------------------------------
+8. SERVER MODELS
+--------------------------------------------------------------------------------
+
+  Participant          WebSocket connection, username, owner flag, active status
+  Question             Prompt + exactly 2 options, timer, timestamp
+  Response             Participant answer to a question
+  QuizSession          Core session class (participants, questions, responses,
+                       lifecycle management)
+  VybeLedger           Append-only transaction log, balance calculation
+  ParticipantUnlock    Track purchased feature access per participant+resource
+  QuotaManager         Enforce question limits (3 free, 10 upgraded)
+
+--------------------------------------------------------------------------------
+9. FRONTEND STATE (Zustand Stores)
+--------------------------------------------------------------------------------
+
+  authStore       Twitter user, JWT token, Vybes balance, feature unlocks
+  quizStore       Session ID, participant ID, quiz state, matches, question limits
+  websocketStore  WebSocket connection, send helper
+  draftStore      Editable questions before publishing to session
+  uiStore         Active page, notifications/errors, dark mode, scroll position
+
+--------------------------------------------------------------------------------
+10. TEST COVERAGE
+--------------------------------------------------------------------------------
+
+Test runner: Vitest | 17 test files | 245+ passing tests
+
+Unit Tests (tests/unit/):
+  VybeLedger.test.ts         Transaction ledger, balance, prevent negatives
+  ParticipantUnlock.test.ts  Unlock creation, idempotency, tier hierarchy
+  QuotaManager.test.ts       Question limit enforcement
+  BillingService.test.ts     Purchase logic, idempotent access, balance checks
+  MatchingService.test.ts    Match calculation, caching, tier slicing
+  QuizSession.test.ts        Session lifecycle, participant/question/response mgmt
+  ResponseSubmission.test.ts Response validation, timestamp tracking
+  QuestionAddition.test.ts   Question validation, owner-only enforcement
+  Repositories.test.ts       DAO layer correctness
+
+Integration Tests (tests/integration/):
+  WebSocketHandler.test.ts     Full message handling pipeline
+  WebSocketFlow.test.ts        Session → questions → responses → matches flow
+  PurchaseFlow.test.ts         Credit purchase, unlock, double-charge prevention
+  Persistence.test.ts          In-memory → SQLite write-through
+  ParticipantJoining.test.ts   Multi-participant session coordination
+  DynamicMatchUpdates.test.ts  Cache invalidation on quiz changes
+  CacheBehavior.test.ts        10-minute TTL, stale data handling
+
+Edge Cases (tests/edge-cases/):
+  EdgeCases.test.ts  Concurrent operations, race conditions, extreme data sizes
+
+Test Commands:
+  npm test                      Run all tests
+  npm test -- --ui              Interactive UI
+  npm test -- --coverage        Coverage report
+  npm test QuizSession          Run single file
+
+--------------------------------------------------------------------------------
+11. DEPLOYMENT
+--------------------------------------------------------------------------------
+
+Backend (Fly.io):
+  npm run build:server
+  flyctl deploy
+
+  Fly.io config (fly.toml):
+    Region:       iad (US East)
+    Memory:       256 MB
+    CPU:          1 shared
+    Volume:       /app/data (SQLite persistence)
+    Auto-scaling: min 0, soft limit 20 connections, hard limit 25
+    HTTPS:        forced on ports 80/443
+
+Frontend (Cloudflare Pages):
+  npm run build:frontend
+  wrangler pages deploy dist --project-name=vybecheck
+
+Environment Variables — Backend:
+  PORT, APP_URL, JWT_SECRET
+  VITE_TWITTER_CLIENT_ID, VITE_TWITTER_CLIENT_SECRET
+  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+  STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO, STRIPE_PRICE_ULTIMATE
+  OPENAI_API_KEY
+
+Environment Variables — Frontend:
+  VITE_WS_URL               (e.g., wss://vybecheck.fly.dev)
+  VITE_TWITTER_CLIENT_ID
+  VITE_TWITTER_REDIRECT_URI
+
+--------------------------------------------------------------------------------
+12. ARCHITECTURAL PATTERNS
+--------------------------------------------------------------------------------
+
+  1. Vertical Slicing        Features built in testable slices
+  2. Service-Oriented        Separate services per business domain
+  3. Repository Pattern      DAO layer abstracts SQLite from business logic
+  4. Write-Through Caching   In-memory models sync to DB automatically
+  5. Idempotent Operations   Purchases tracked to prevent double-charging
+  6. Tier Hierarchy          MATCH_ALL ⊇ MATCH_TOP3 ⊇ MATCH_PREVIEW
+  7. Resource-Based Access   Unlocks tied to resourceId (e.g. session:abc123)
+  8. WebSocket Pub/Sub       Broadcast to all participants on state changes
+
+--------------------------------------------------------------------------------
+13. KEY ENTRY POINTS
+--------------------------------------------------------------------------------
+
+  src/server.ts                  Express server, WebSocket, route setup
+  src/frontend/App.tsx           React app root, tab routing, WebSocket init
+  src/shared/types.ts            Shared TS types (messages, data models)
+  src/shared/features.ts         Feature flag definitions
+  package.json                   Dependencies, scripts
+  tsconfig.json                  Frontend TypeScript config
+  tsconfig.server.json           Backend TypeScript config
+  vite.config.ts                 Frontend build config
+  vite.server.config.ts          Backend build config
+  tailwind.config.js             Design tokens (colors, spacing)
+
+--------------------------------------------------------------------------------
+14. DOCUMENTATION FILES
+--------------------------------------------------------------------------------
+
+  README.md                      Project overview
+  QUICKSTART.md                  3-step deploy guide
+  DEPLOYMENT.md                  Detailed deployment instructions
+  FEATURE_FLAGS.md               Flag management guide
+  WARP.md                        AI assistant guidance + phase completion status
+  Thoughtsdotmd/
+    Monetization System Implementation...  Phase-by-phase implementation guide
+    Flagsmith Feature Flags Integration    Proposed advanced A/B testing
+    MonetizationStrategy.md               Early strategy notes
+    monetization.md                       Additional monetization notes
+
+--------------------------------------------------------------------------------
+15. CURRENT STATUS
+--------------------------------------------------------------------------------
+
+Completed:
+  [x] Core session/participant/question/response models
+  [x] Matching engine with tiered results
+  [x] Credit system (Vybes) with append-only ledger
+  [x] Stripe payment integration
+  [x] Twitter OAuth 2.0 with PKCE
+  [x] WebSocket real-time communication
+  [x] SQLite database persistence
+  [x] 245+ automated tests
+  [x] Onboarding flow
+  [x] AI question generation (feature-flagged)
+
+In Progress:
+  [ ] Phase 5 (WebSocket Monetization Integration) — nearly complete
+  [ ] Database hydration on server restart
+
+Planned / Future:
+  [ ] Flagsmith A/B testing integration
+  [ ] Additional premium tiers / feature unlocks
+
+================================================================================
+                                 END OF SUMMARY
+================================================================================
